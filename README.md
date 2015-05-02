@@ -6,6 +6,8 @@ A Schema validation library with a very minimal API and an interface that looks 
 
 First define your schemas somewhere
 
+```python
+
 	from schemalite import SchemaLite, Field, SchemaLiteField, SchemaLiteListField
 
 
@@ -25,8 +27,11 @@ First define your schemas somewhere
 	    head = SchemaLiteField(PersonSchema, required=False)
 	    members = SchemaLiteListField(PersonSchema)
 
+```
 
 Then use them in your validation code
+
+```python
 
     person = {'name': 'Al Capone', 'gender': 'M'}
 
@@ -47,3 +52,4 @@ Then use them in your validation code
     print validated_org.valid
     print validated_org.errors
 
+```
