@@ -53,3 +53,18 @@ class JSchema(object):
                 if field['required']:
                     error_messages[key] = "Missing Required Field"
         return error_messages
+
+
+class UserSchema(JSchema):
+
+    name = field(validator=lambda x: x is not None)
+    address = field(required=False, validator=AddressSchema.validates)
+    customers = field(validator=lambda clist: all(CustomerSchema.validates(c) for c in clist))
+
+
+UserSchema.validates(data)
+UserSchema.validation_errors(data)
+
+validated_user = UserSchema(data)
+validated_user.valid
+validated_user.errors
