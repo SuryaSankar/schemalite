@@ -6,7 +6,7 @@ def mark_as_invalid_value(value):
     return "Invalid Value"
 
 
-class JSchema(object):
+class SchemaUltraLite(object):
 
     """
     Used to model a JSON object.
@@ -31,7 +31,7 @@ class JSchema(object):
                     'error_message': mark_as_invalid_value
                 })
 
-    def validates(self, data):
+    def valid(self, data):
         for field in self.fields:
             key = field['key']
             if key in data:
@@ -42,7 +42,7 @@ class JSchema(object):
                     return False
         return True
 
-    def validation_errors(self, data):
+    def errors(self, data):
         error_messages = {}
         for field in self.fields:
             key = field['key']
