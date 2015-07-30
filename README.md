@@ -13,9 +13,9 @@ Because I started writing it before I came across cerberus and schema.
 And also because, while Cerberus and Schema are very powerful, they also have too big an API for my simple needs. This library has only  two concepts I need to keep in mind. 
 
 
-    1. Define a Schema class with Fields, just like one will write a WTForm class with Fields or a SQLalchemy Model with Columns
+1. Define a Schema class with Fields, just like one will write a WTForm class with Fields or a SQLalchemy Model with Columns
 
-    2. Each field can have a validator. A validator is defined as a function which accepts a value as input and returns a tuple as output. The first element of the tuple is a boolean - denoting whether the value is valid or not. The second element represents the error, in case the value is invalid. The error can be represented any way you like - a String, or a dictionary or a list of strings or a list of dictionaries - anything. Your app, your validator, your rules.
+2. Each field can have a validator. A validator is defined as a function which accepts a value as input and returns a tuple as output. The first element of the tuple is a boolean - denoting whether the value is valid or not. The second element represents the error, in case the value is invalid. The error can be represented any way you like - a String, or a dictionary or a list of strings or a list of dictionaries - anything. Your app, your validator, your rules.
 
 Using composition, we can map complex data types with just the single concept of validator.
 

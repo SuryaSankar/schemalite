@@ -1,4 +1,4 @@
-from schemalite import Schema, Field, validator
+from schemalite import Schema, Field, validator, schema_validator
 from schemalite.validators import type_validator
 
 
@@ -17,6 +17,13 @@ class PersonSchema(Schema):
             return (True, None)
         return (False, 'Invalid Value For Age')
 
+    @schema_validator
+    def check_males_age(data):
+        if data['gender'] == 'M':
+            if 'age' in data and data['age'] > 70:
+                return (False, 'Male age cannot be greater than 70')
+        return (True, None)
+
 
 class OrganizationSchema(Schema):
 
@@ -27,7 +34,7 @@ class OrganizationSchema(Schema):
 
 
 if __name__ == '__main__':
-    ricky = {'name': 'Ricky', 'gender': 'M'}
+    ricky = {'name': 'Ricky', 'gender': 'M', 'age': 80}
 
     is_valid, errors = PersonSchema.validate(ricky)
     print is_valid
@@ -61,5 +68,11 @@ if __name__ == '__main__':
         ]
     }
     is_valid, errors = OrganizationSchema.validate(org)
+    print is_valid
+    print errors
+
+    ricky = {'name': 'Ricky', 'gender': 'M', 'age': 80}
+
+    is_valid, errors = PersonSchema.validate(ricky)
     print is_valid
     print errors
