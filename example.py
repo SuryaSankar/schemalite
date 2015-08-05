@@ -1,62 +1,70 @@
-from schemalite import Schema, Field, validator, schema_validator
+from schemalite import Schema, Field, validator, schema_validator, SchemaError
 from schemalite.validators import type_validator
 
 
 class PersonSchema(Schema):
 
-    name = Field(validator=lambda val:
-                 (False, 'NULLVALUE') if val is None else (True, None))
-    gender = Field(validator=lambda val:
-                   (True, None) if val in ['M', 'F']
-                   else (False, 'INVALID_VALUE'))
+    name = Field(required=True)
+    gender = Field(required=True)
     age = Field(validator=type_validator(int), required=False)
 
-    @validator(age)
-    def validate_age(val):
-        if 0 < val < 120:
-            return (True, None)
-        return (False, 'Invalid Value For Age')
+    @classmethod
+    @validator('age')
+    def validate_age(cls, val):
+        if val < 0 or val > 120:
+            raise SchemaError('Invalid Value For Age')
 
+    @classmethod
     @schema_validator
-    def check_males_age(data):
+    def check_males_age(cls, data):
         if data['gender'] == 'M':
             if 'age' in data and data['age'] > 70:
-                return (False, 'Male age cannot be greater than 70')
-        return (True, None)
+                raise SchemaError('Male age cannot be greater than 70')
 
 
 class OrganizationSchema(Schema):
 
-    name = Field(validator=lambda val:
-                 (False, 'NULLVALUE') if val is None else (True, None))
+    name = Field(required=True)
     head = Field(validator=PersonSchema.validate, required=False)
     members = Field(validator=PersonSchema.validate_list)
 
 
 if __name__ == '__main__':
-    ricky = {'name': 'Ricky', 'gender': 'M', 'age': 80}
+    ricky = {'gender': 'M', 'age': 80}
 
-    is_valid, errors = PersonSchema.validate(ricky)
-    print is_valid
-    print errors
+    try:
+        PersonSchema.validate(ricky)
+    except SchemaError as e:
+        print e.value
+    else:
+        print "No error"
 
     adam = {'name': 'Adam', 'gender': 'M', 'age': -1.4}
 
-    is_valid, errors = PersonSchema.validate(adam)
-    print is_valid
-    print errors
+    try:
+        PersonSchema.validate(adam)
+    except SchemaError as e:
+        print e.value
+    else:
+        print "No error"
 
     john = {'name': 'John', 'gender': 'M', 'age': 200}
 
-    is_valid, errors = PersonSchema.validate(john)
-    print is_valid
-    print errors
+    try:
+        PersonSchema.validate(john)
+    except SchemaError as e:
+        print e.value
+    else:
+        print "No error"
 
     maya = {'name': 'Maya', 'gender': 'M', 'age': 20}
 
-    is_valid, errors = PersonSchema.validate(maya)
-    print is_valid
-    print errors
+    try:
+        PersonSchema.validate(maya)
+    except SchemaError as e:
+        print e.value
+    else:
+        print "No error"
 
     org = {
         'name': 'Startup',
@@ -67,12 +75,18 @@ if __name__ == '__main__':
             {'name': 'Martin', 'gender': 'X'}
         ]
     }
-    is_valid, errors = OrganizationSchema.validate(org)
-    print is_valid
-    print errors
+    try:
+        OrganizationSchema.validate(org)
+    except SchemaError as e:
+        print e.value
+    else:
+        print "No error"
 
     ricky = {'name': 'Ricky', 'gender': 'M', 'age': 80}
 
-    is_valid, errors = PersonSchema.validate(ricky)
-    print is_valid
-    print errors
+    try:
+        PersonSchema.validate(ricky)
+    except SchemaError as e:
+        print e.value
+    else:
+        print "No error"

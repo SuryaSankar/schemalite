@@ -1,4 +1,10 @@
 from .validators import chained_validator
+from .schema_error import SchemaError
+from functools import wraps
+
+
+def raise_(ex):
+    raise ex
 
 
 class Field(object):
@@ -38,36 +44,81 @@ class Schema(object):
                         is_valid = False
                         if errors is None:
                             errors = {}
-                        errors[k] = 'MissingKey'
+                            if '_missing_keys_' not in errors:
+                                errors['_missing_keys_'] = []
+                        errors['_missing_keys_'].append(k)
                 else:
                     if attr.validator is None:
                         is_valid = is_valid & True
                     else:
                         if attr.validator_requires_other_fields:
-                            field_is_valid, field_errors = attr.validator(
-                                data)
+                            params = data
                         else:
-                            field_is_valid, field_errors = attr.validator(
-                                data[k])
+                            params = data[k]
+                        try:
+                            attr.validator(params)
+                        except SchemaError as e:
+                            field_is_valid = False
+                            field_errors = e.value
+                        else:
+                            field_is_valid = True
+                            field_errors = None
+
                         is_valid = is_valid & field_is_valid
                         if not field_is_valid:
                             if errors is None:
                                 errors = {}
                             errors[k] = field_errors
+
+                        # if attr.validator_requires_other_fields:
+                        #     field_is_valid, field_errors = attr.validator(
+                        #         data)
+                        # else:
+                        #     field_is_valid, field_errors = attr.validator(
+                        #         data[k])
+                        # is_valid = is_valid & field_is_valid
+                        # if not field_is_valid:
+                        #     if errors is None:
+                        #         errors = {}
+                        #     errors[k] = field_errors
             elif hasattr(attr, 'is_schema_validator'):
-                schema_is_valid, schema_errors = attr(data)
-                is_valid = is_valid and schema_is_valid
+                try:
+                    attr(data)
+                except SchemaError as e:
+                    schema_is_valid = False
+                    schema_errors = e.value
+                else:
+                    schema_is_valid = True
+                    is_valid = is_valid and schema_is_valid
+                # schema_is_valid, schema_errors = attr(data)
+                # is_valid = is_valid and schema_is_valid
                 if not schema_is_valid:
                     if errors is None:
                         errors = {}
                     errors[attr.__name__] = schema_errors
-        return (is_valid, errors)
+        # return (is_valid, errors)
+
+        if not is_valid:
+            raise SchemaError(errors)
 
     @classmethod
     def validate_list(cls, datalist):
-        results = [cls.validate(data) for data in datalist]
-        return (all(result[0] for result in results),
-                [result[1] for result in results])
+        is_valid = True
+        errors = []
+        for datum in datalist:
+            try:
+                cls.validate(datum)
+            except SchemaError as e:
+                is_valid = False
+                errors.append(e.value)
+            else:
+                is_valid = is_valid and True
+                errors.append(None)
+        if not is_valid:
+            raise SchemaError(errors)
+        # results = [cls.validate(data) for data in datalist]
+        # return (all(result[0] for result in results),
+        #         [result[1] for result in results])
 
     @classmethod
     def validator(cls, func):
@@ -75,10 +126,15 @@ class Schema(object):
         return func
 
 
-def validator(field):
+def validator(field_name):
+
     def field_validator_func_wrapper(func):
-        field.validator = chained_validator(field.validator, func)
-        return func
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            field = getattr(args[0], field_name)
+            field.validator = chained_validator(field.validator, func)
+            return func(*args, **kwargs)
+        return wrapper
     return field_validator_func_wrapper
 
 
