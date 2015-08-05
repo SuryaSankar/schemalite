@@ -2,8 +2,12 @@ from setuptools import setup
 
 setup(
     name='schemalite',
+<<<<<<< HEAD
     version='0.1.6',
+=======
+    version='0.1.4',
     description='A minimalistic Schema validation library',
+>>>>>>> c68bc4fb9c2a8dad3f26a08f01efe25bc3d3d293
     long_description='A minimalistic Schema validation library',
     packages=['schemalite'],
     include_package_data=True,
