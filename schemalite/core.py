@@ -141,3 +141,58 @@ def validator(field_name):
 def schema_validator(func):
     func.is_schema_validator = True
     return func
+
+
+# def validate_schema(schema_dict, data):
+#     is_valid = True
+#     errors = None
+#     attrs_dict = schema_dict['fields']
+
+#     for k, attr in attrs_dict.items():
+#         if k not in data:
+#             if attr.get('required', True):
+#                 is_valid = False
+#                 if errors is None:
+#                     errors = {}
+#                     if '_missing_keys_' not in errors:
+#                         errors['_missing_keys_'] = []
+#                 errors['_missing_keys_'].append(k)
+#         else:
+#             if attr.get('validator') is None:
+#                 is_valid = is_valid & True
+#             else:
+#                 if attr.get('validator_requires_other_fields'):
+#                     params = data
+#                 else:
+#                     params = data[k]
+#                 try:
+#                     attr.get('validator')(params)
+#                 except SchemaError as e:
+#                     field_is_valid = False
+#                     field_errors = e.value
+#                 else:
+#                     field_is_valid = True
+#                     field_errors = None
+
+#                 is_valid = is_valid & field_is_valid
+#                 if not field_is_valid:
+#                     if errors is None:
+#                         errors = {}
+#                     errors[k] = field_errors
+
+#     for full_data_validator in schema_dict.get('full_data_validators', []):
+#         try:
+#             full_data_validator(data)
+#         except SchemaError as e:
+#             schema_is_valid = False
+#             schema_errors = e.value
+#         else:
+#             schema_is_valid = True
+#             is_valid = is_valid and schema_is_valid
+#         if not schema_is_valid:
+#             if errors is None:
+#                 errors = {}
+#             errors[attr.__name__] = schema_errors
+
+#     if not is_valid:
+#         raise SchemaError(errors)
