@@ -13,7 +13,6 @@ def type_validator(*types):
             raise SchemaError('TypeError')
     return validator
 
-
 def type_list_validator(*types):
     def validator(olist):
         valid = True

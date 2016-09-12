@@ -10,10 +10,46 @@ def raise_(ex):
 class Field(object):
 
     def __init__(self, validator=None, required=True,
-                 validator_requires_other_fields=False):
+                 validator_requires_other_fields=False,
+                 internal_name=None, adapter=None):
         self.validator = validator
         self.required = required
         self.validator_requires_other_fields = validator_requires_other_fields
+        self.internal_name = internal_name
+        self.adapter = adapter
+
+class SchemaObjectField(Field):
+    def __init__(self, validator=None, required=True,
+                 validator_requires_other_fields=False,
+                 internal_name=None, adapter=None, schema=None):
+        super(SchemaObjectField, self).__init__(
+            validator=validator, required=required,
+            validator_requires_other_fields=validator_requires_other_fields,
+            internal_name=internal_name, adapter=adapter)
+        self.schema = schema
+
+class ListOfSchemaObjectsField(Field):
+    def __init__(self, validator=None, required=True,
+                 validator_requires_other_fields=False,
+                 internal_name=None, adapter=None, schema=None):
+        super(ListOfSchemaObjectsField, self).__init__(
+            validator=validator, required=required,
+            validator_requires_other_fields=validator_requires_other_fields,
+            internal_name=internal_name, adapter=adapter)
+        self.schema = schema
+
+
+
+def chained_adapter(*adapters):
+    def _adapter(o):
+        res = o
+        for a in adapters:
+            if a is None:
+                continue
+            res = a(res)
+        return res
+
+    return _adapter
 
 
 class ValidationResult(object):
@@ -40,7 +76,11 @@ class Schema(object):
         for k, attr in attrs_dict.items():
             if isinstance(attr, Field):
                 if k not in data:
-                    if attr.required:
+                    if not isinstance(attr.required, bool):
+                        required = attr.required(data)
+                    else:
+                        required = attr.required
+                    if required:
                         is_valid = False
                         if errors is None:
                             errors = {}
@@ -48,6 +88,10 @@ class Schema(object):
                                 errors['_missing_keys_'] = []
                         errors['_missing_keys_'].append(k)
                 else:
+                    if isinstance(attr, SchemaObjectField):
+                        attr.validator = chained_validator(attr.validator, attr.schema.validate)
+                    elif isinstance(attr, ListOfSchemaObjectsField):
+                        attr.validator = chained_validator(attr.validator, attr.schema.validate_list)
                     if attr.validator is None:
                         is_valid = is_valid & True
                     else:
@@ -124,6 +168,32 @@ class Schema(object):
     def validator(cls, func):
         cls.schema_validators.append(func)
         return func
+
+    @classmethod
+    def adapt(cls, data):
+        attrs_dict = {}
+        result = {}
+        for klass in cls.__mro__:
+            for k, v in klass.__dict__.items():
+                if k not in attrs_dict:
+                    attrs_dict[k] = v
+        for k, attr in attrs_dict.items():
+            if isinstance(attr, Field) and k in data:
+                field_name = attr.internal_name or k
+                field_value = data[k]
+                if isinstance(attr, SchemaObjectField):
+                    attr.adapter = chained_adapter(attr.adapter, attr.schema.adapt)
+                elif isinstance(attr, ListOfSchemaObjectsField):
+                    attr.adapter = chained_adapter(attr.adapter, attr.schema.adapt_list)
+                if attr.adapter is not None:
+                    field_value = attr.adapter(field_value)
+                result[field_name] = field_value
+        return result
+
+    @classmethod
+    def adapt_list(cls, datalist):
+        return [cls.adapt(datum) for datum in datalist]
+
 
 
 def validator(field_name):

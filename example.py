@@ -1,4 +1,4 @@
-from schemalite import Schema, Field, validator, schema_validator, SchemaError
+from schemalite import Schema, Field, validator, schema_validator, SchemaError, SchemaObjectField, ListOfSchemaObjectsField
 from schemalite.validators import type_validator
 
 
@@ -6,7 +6,7 @@ class PersonSchema(Schema):
 
     name = Field(required=True)
     gender = Field(required=True)
-    age = Field(validator=type_validator(int), required=False)
+    age = Field(validator=type_validator(int), required=False, internal_name='big_age')
 
     @classmethod
     @validator('age')
@@ -25,8 +25,8 @@ class PersonSchema(Schema):
 class OrganizationSchema(Schema):
 
     name = Field(required=True)
-    head = Field(validator=PersonSchema.validate, required=False)
-    members = Field(validator=PersonSchema.validate_list)
+    head = SchemaObjectField(required=False, schema=PersonSchema)
+    members = ListOfSchemaObjectsField(schema=PersonSchema)
 
 
 if __name__ == '__main__':
@@ -68,7 +68,7 @@ if __name__ == '__main__':
 
     org = {
         'name': 'Startup',
-        'ceo': maya,
+        'head': maya,
         'members': [
             adam, john,
             {'name': 'Peter', 'gender': 'M'},
@@ -90,3 +90,7 @@ if __name__ == '__main__':
         print e.value
     else:
         print "No error"
+
+    print "adapted values"
+
+    print OrganizationSchema.adapt(org)
