@@ -1,5 +1,7 @@
 from schemalite import Schema, Field, validator, schema_validator, SchemaError, SchemaObjectField, ListOfSchemaObjectsField
-from schemalite.validators import type_validator
+from schemalite.validators import type_validator, is_a_type_of, is_a_list_of_types_of
+from schemalite.core import validate_object, schema_to_json, func_and_desc
+import json
 
 
 class PersonSchema(Schema):
@@ -10,7 +12,7 @@ class PersonSchema(Schema):
 
     @classmethod
     @validator('age')
-    def validate_age(cls, val):
+    def validate_age(cls, val, data):
         if val < 0 or val > 120:
             raise SchemaError('Invalid Value For Age')
 
@@ -29,68 +31,138 @@ class OrganizationSchema(Schema):
     members = ListOfSchemaObjectsField(schema=PersonSchema)
 
 
-if __name__ == '__main__':
-    ricky = {'gender': 'M', 'age': 80}
-
-    try:
-        PersonSchema.validate(ricky)
-    except SchemaError as e:
-        print e.value
-    else:
-        print "No error"
-
-    adam = {'name': 'Adam', 'gender': 'M', 'age': -1.4}
-
-    try:
-        PersonSchema.validate(adam)
-    except SchemaError as e:
-        print e.value
-    else:
-        print "No error"
-
-    john = {'name': 'John', 'gender': 'M', 'age': 200}
-
-    try:
-        PersonSchema.validate(john)
-    except SchemaError as e:
-        print e.value
-    else:
-        print "No error"
-
-    maya = {'name': 'Maya', 'gender': 'M', 'age': 20}
-
-    try:
-        PersonSchema.validate(maya)
-    except SchemaError as e:
-        print e.value
-    else:
-        print "No error"
-
-    org = {
-        'name': 'Startup',
-        'head': maya,
-        'members': [
-            adam, john,
-            {'name': 'Peter', 'gender': 'M'},
-            {'name': 'Martin', 'gender': 'X'}
-        ]
+person_schema = {
+    "fields": {
+        "name": {
+            "required": True
+        },
+        "gender": {
+            "required": True,
+            "validators": [
+                is_a_type_of(str, unicode),
+                func_and_desc(
+                    lambda gender, person: (False, "Invalid value")
+                    if gender not in ("Male", "Female") else (True, None),
+                    "Must be either male or female")
+            ]
+        },
+        "age": {
+            "validators": [
+                is_a_type_of(int),
+                func_and_desc(
+                    lambda age, person: (False, "Too old")
+                    if age > 40 else (True, None),
+                    "Has to be less than 40")
+            ],
+            "required": func_and_desc(
+                lambda person: person['gender']=='Female',
+                "If gender is female")
+        }
     }
-    try:
-        OrganizationSchema.validate(org)
-    except SchemaError as e:
-        print e.value
-    else:
-        print "No error"
+}
 
-    ricky = {'name': 'Ricky', 'gender': 'M', 'age': 80}
+org_schema = {
+    "fields": {
+        "name": {
+            "required": True
+        },
+        "ceo": {
+            "schema": person_schema,
+            "rel_type": "scalar"
+        },
+        "members": {
+            "schema": person_schema,
+            "rel_type": "list"
+        }
+    },
+    "validators": [
+        func_and_desc(
+            lambda org: (False, "Non member cannot be CEO")
+            if org["ceo"] not in org["members"] else (True, None),
+            "Non member cannot be CEO")
+    ]
+}
 
-    try:
-        PersonSchema.validate(ricky)
-    except SchemaError as e:
-        print e.value
-    else:
-        print "No error"
 
-    print "adapted values"
+if __name__ == '__main__':
+    isaac = {"gender": "Male", "name": "Isaac"}
+    surya = {"gender": "Male", "name": "Surya", "age": "h"}
+    senthil = {"gender": "Male", "name": "Senthil"}
+    sharanya = {"gender": "Female", "name": "Sharanya"}
+    inkmonk = {
+        "name": "Inkmonk",
+        "ceo": isaac,
+        "members": [surya, senthil, sharanya]
 
-    print OrganizationSchema.adapt(org)
+    }
+    print validate_object(person_schema, surya)
+    print validate_object(org_schema, inkmonk)
+
+    print json.loads(schema_to_json(person_schema))
+
+    print json.loads(schema_to_json(org_schema))
+
+    # ricky = {'gender': 'M', 'age': 80}
+
+    # try:
+    #     PersonSchema.validate(ricky)
+    # except SchemaError as e:
+    #     print e.value
+    # else:
+    #     print "No error"
+
+    # adam = {'name': 'Adam', 'gender': 'M', 'age': -1.4}
+
+    # try:
+    #     PersonSchema.validate(adam)
+    # except SchemaError as e:
+    #     print e.value
+    # else:
+    #     print "No error"
+
+    # john = {'name': 'John', 'gender': 'M', 'age': 200}
+
+    # try:
+    #     PersonSchema.validate(john)
+    # except SchemaError as e:
+    #     print e.value
+    # else:
+    #     print "No error"
+
+    # maya = {'name': 'Maya', 'gender': 'M', 'age': 20}
+
+    # try:
+    #     PersonSchema.validate(maya)
+    # except SchemaError as e:
+    #     print e.value
+    # else:
+    #     print "No error"
+
+    # org = {
+    #     'name': 'Startup',
+    #     'head': maya,
+    #     'members': [
+    #         adam, john,
+    #         {'name': 'Peter', 'gender': 'M'},
+    #         {'name': 'Martin', 'gender': 'X'}
+    #     ]
+    # }
+    # try:
+    #     OrganizationSchema.validate(org)
+    # except SchemaError as e:
+    #     print e.value
+    # else:
+    #     print "No error"
+
+    # ricky = {'name': 'Ricky', 'gender': 'M', 'age': 80}
+
+    # try:
+    #     PersonSchema.validate(ricky)
+    # except SchemaError as e:
+    #     print e.value
+    # else:
+    #     print "No error"
+
+    # print "adapted values"
+
+    # print OrganizationSchema.adapt(org)
