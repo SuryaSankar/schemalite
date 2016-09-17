@@ -32,12 +32,12 @@ def validate_object(schema, data, allow_unknown_fields=None):
                     "required": True
                 },
                 "ceo": {
-                    "schema": person_schema,
-                    "rel_type": "scalar"
+                    "target_schema": person_schema,
+                    "target_relation_type": "scalar"
                 },
                 "members": {
-                    "schema": person_schema,
-                    "rel_type": "list"
+                    "target_schema": person_schema,
+                    "target_relation_type": "list"
                 }
             },
             "validators": [
@@ -73,11 +73,11 @@ def validate_object(schema, data, allow_unknown_fields=None):
                     errors['MISSING_FIELDS'] = []
                 errors['MISSING_FIELDS'].append(field_name)
         else:
-            field_schema = field_props.get('schema')
+            field_schema = field_props.get('target_schema')
             field_errors = []
             field_is_valid = True
             if field_schema:
-                if field_props.get('rel_type') == 'list':
+                if field_props.get('target_relation_type') == 'list':
                     validation_result, validation_errors = validate_list_of_objects(
                         field_schema, data[field_name])
                 else:

@@ -67,12 +67,12 @@ org_schema = {
             "required": True
         },
         "ceo": {
-            "schema": person_schema,
-            "rel_type": "scalar"
+            "target_schema": person_schema,
+            "target_relation_type": "scalar"
         },
         "members": {
-            "schema": person_schema,
-            "rel_type": "list"
+            "target_schema": person_schema,
+            "target_relation_type": "list"
         }
     },
     "validators": [
@@ -84,6 +84,22 @@ org_schema = {
     "allow_unknown_fields": True
 }
 
+ds_schema = {
+    "fields": {
+        "attrs": {
+            "required": False,
+            "validators": [is_a_list_of_types_of(str, unicode)]
+        },
+        "rels": {
+            "required": False,
+            "validators": [is_a_type_of(dict)]
+        }
+    }
+}
+
+def validate_rels(obj):
+    for k, v in obj["rels"]:
+        validate_object(ds_schema, v)
 
 if __name__ == '__main__':
     isaac = {"gender": "Male", "name": "Isaac"}
@@ -104,6 +120,17 @@ if __name__ == '__main__':
     print json.loads(schema_to_json(person_schema))
 
     print json.loads(schema_to_json(org_schema))
+
+    ds = {
+        "attrs": ["id"],
+        "rels": {
+            "user": {
+                "attrs": ["id"]
+            }
+        }
+    }
+
+    print validate_object(ds_schema, ds)
 
     # ricky = {'gender': 'M', 'age': 80}
 
