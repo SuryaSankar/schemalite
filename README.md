@@ -91,7 +91,7 @@ The output itself will be tuple of the same format as what we defined above for 
 
 Sample output
 
-```json
+```python
 (
     False,
     {
