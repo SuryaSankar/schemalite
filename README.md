@@ -193,4 +193,4 @@ if __name__ == '__main__':
 
 The decorator `func_and_desc` is used to give a human readable name to a validator. If this is used, when the schema is serialized, the validators will also have readable names. If this decorator is not used, the validator will get serialized using the function name (or `Unnamed function` if there is no function name)
 
-I've also defined some ready to use validators for type checking like shown in the above example. Since the concept of a validator is very generic, it is easy to build a large collection of validators which you can pick and use for your domain. 
+I've also defined some ready to use validators for type checking like shown in the above example. Since the concept of a validator is very generic, it is easy to build a large collection of validators which you can pick and use for your domain.

@@ -143,6 +143,7 @@ def schema_to_json(schema):
         schema,
         default=json_encoder)
 
+## TO BE DEPRECATED ##
 
 from .validators import chained_validator
 from .schema_error import SchemaError
