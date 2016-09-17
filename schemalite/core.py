@@ -1,7 +1,7 @@
 import json
 
 
-def validate_object(schema, data):
+def validate_object(schema, data, allow_unknown_fields=None):
     """
         person_schema = {
             "fields": {
@@ -22,7 +22,8 @@ def validate_object(schema, data):
                         lambda age, person: (False, "Too old") if age > 40 else (True, None)],
                     "required": lambda person: person.get('gender') == 'Female'
                 }
-            }
+            },
+            "allow_unknown_fields": True
         }
 
         org_schema = {
@@ -48,6 +49,17 @@ def validate_object(schema, data):
     is_valid = True
     errors = None
     fields = schema["fields"]
+    if allow_unknown_fields is None:
+        allow_unknown_fields = schema.get('allow_unknown_fields', False)
+    if not allow_unknown_fields:
+        for k in data.keys():
+            if k not in fields.keys():
+                if errors is None:
+                    errors = {}
+                is_valid = False
+                if 'UNKNOWN_FIELDS' not in errors:
+                    errors['UNKNOWN_FIELDS'] = []
+                errors['UNKNOWN_FIELDS'].append(k)
     for field_name, field_props in fields.items():
         if field_name not in data:
             required = field_props.get('required', False)
@@ -104,13 +116,14 @@ def validate_object(schema, data):
     return (is_valid, errors)
 
 
-def validate_list_of_objects(schema, datalist):
+def validate_list_of_objects(schema, datalist, allow_unknown_fields=None):
     is_valid = True
     errors = []
     if not isinstance(datalist, list):
         return (False, "Expected a list")
     for datum in datalist:
-        datum_validity, datum_errors = validate_object(schema, datum)
+        datum_validity, datum_errors = validate_object(
+            schema, datum, allow_unknown_fields=allow_unknown_fields)
         if datum_validity is False:
             errors.append(datum_errors)
         else:

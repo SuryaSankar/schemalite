@@ -58,7 +58,7 @@ person_schema = {
                 lambda person: person['gender']=='Female',
                 "If gender is female")
         }
-    }
+    },
 }
 
 org_schema = {
@@ -80,23 +80,26 @@ org_schema = {
             lambda org: (False, "Non member cannot be CEO")
             if org["ceo"] not in org["members"] else (True, None),
             "Non member cannot be CEO")
-    ]
+    ],
+    "allow_unknown_fields": True
 }
 
 
 if __name__ == '__main__':
     isaac = {"gender": "Male", "name": "Isaac"}
-    surya = {"gender": "Male", "name": "Surya", "age": "h"}
+    surya = {"gender": "Male", "name": "Surya", "age": "h", "city":"Chennai"}
     senthil = {"gender": "Male", "name": "Senthil"}
     sharanya = {"gender": "Female", "name": "Sharanya"}
     inkmonk = {
         "name": "Inkmonk",
         "ceo": isaac,
-        "members": [surya, senthil, sharanya]
-
+        "members": [surya, senthil, sharanya],
+        "city": "Chennai"
     }
     print validate_object(person_schema, surya)
+    print validate_object(person_schema, surya, True)
     print validate_object(org_schema, inkmonk)
+    print validate_object(org_schema, inkmonk, False)
 
     print json.loads(schema_to_json(person_schema))
 
