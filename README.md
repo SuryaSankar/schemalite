@@ -51,12 +51,12 @@ org_schema = {
             "required": True
         },
         "ceo": {
-            "schema": person_schema,
-            "rel_type": "scalar"
+            "target_schema": person_schema,
+            "targe_relation_type": "scalar"
         },
         "members": {
-            "schema": person_schema,
-            "rel_type": "list"
+            "target_schema": person_schema,
+            "target_relation_type": "list"
         }
     },
     "validators": [
