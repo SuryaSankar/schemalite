@@ -70,18 +70,26 @@ org_schema = {
 
 A schema is a `dict` with 2 keys - "fields" and "validators"
 
+`validators` is a list of validator functions to apply on the input data as a whole instead of at field level. It should again be a function which returns a tuple as output, while accepting a single dictionary as input ( corresponding to the whole input data )
+
 `fields` - is a dict with keys corresponding to the names of the keys of the dictionary which is being validated. Each field is in turn a dict, which has one or more of the following optional keys
 
-    `required` - True/False. Alternatively it can also be a function which accepts the input dictionary and outputs True/False as output. 
+1. `required` - True/False. Alternatively it can also be a function which accepts the input dictionary and outputs True/False as output. If not specified, field is assumed to be not required.
 
-    `validators` - A list of validator functions. The function should accept 2 arguments - The value of the particular key being processed and the whole dictionary itself (in case the validator needs access to the whole data instead of that field alone to decide whether the value is valid).
-    It has to return a tuple. Either (True, None) or (False, "some error message") ( The error need not be a string. It can be any valid json serializable data structure - a list or dict also)
+2. `type` - The type of the data the field is expecting. It can be any valid pythonic type - int / str / unicode / date / datetime / Decimal / list / dict ( or anything else which is a python `type`). It can also be a list of types in which case the data should be of any one of those types.
 
-    `schema` - You can nest schemas. If a particular key should be used to store an object or list of objects which correspond to another schema, refer that another schema here.
+3. `validators` - A list of validator functions. The function should accept 2 arguments - The value of the particular key being processed and the whole dictionary itself (in case the validator needs access to the whole data instead of that field alone to decide whether the value is valid). It has to return a tuple. Either (True, None) or (False, "some error message") ( The error need not be a string. It can be any valid json serializable data structure - a list or dict also)
 
-    `rel_type` - This will be checked only when `schema` attribute is set. This defines how that schema is related. It can take 2 values currently - `scalar` ( if it maps to a single object on the target side , Eg: order.user ) or `list` (if it maps to a list of objects, eg: user.orders )
+4. `permitted_values` - A list of permitted values for the field.
 
-`validators` is a list of validator functions to apply on the input data as a whole instead of at field level. It should again be a function which returns a tuple as output, while accepting a single dictionary as input ( corresponding to the whole input data )
+5. If `type` is list, you can send the following fields also
+
+    i. `list_item_type` - Tells the type of each item in the list. It can also be any Python type or a list of types.
+    ii. `list_item_schema` - If `list_item_type` is dict, then you can optionally provide `list_item_schema` also - to validate each dict in the list against another schema
+
+6. If `type` is dict, then you can send the following field
+    `dict_schema` - The schema to validate the dict against.
+
 
 At both field and schema level, all validators will be applied one after another and their errors will be collected together in the output. 
 
@@ -89,78 +97,59 @@ To apply the validator, you can call   `validate_object(schema, data)` ( or `val
 
 The output itself will be tuple of the same format as what we defined above for validators.
 
-Sample output
+Example:
 
-```python
-(
-    False,
-    {
-        'FIELD_LEVEL_ERRORS': {
-            'members': [
-                [{
-                    'FIELD_LEVEL_ERRORS': {'age': ['TypeError', 'Too old']}
-                  },
-                  None,
-                  {
-                    'MISSING_FIELDS': ['age']
-                   }
-                ]
-            ]
-        },
-        'SCHEMA_LEVEL_ERRORS': ['Non member cannot be CEO']
-    }
-)
-```
-
-Here the input data had a list of objects called members. The first memeber had some field level errors. The third member had some schema level errors. The second member had no errors.
-
-Since the errors are shown at all levels - it becomes very easy to directly apply this on a GUI client for example ( the errors can be shown granularly next to each nested field.)
-
-Here is a full example
+Lets define 2 schemas
 
 ```python
 person_schema = {
     "fields": {
         "name": {
-            "required": True
+            "required": True,
+            "type": (str, unicode)
         },
         "gender": {
             "required": True,
-            "validators": [
-                is_a_type_of(str, unicode),
-                func_and_desc(
-                    lambda gender, person: (False, "Invalid value")
-                    if gender not in ("Male", "Female") else (True, None),
-                    "Must be either male or female")
-            ]
+            "type": (str, unicode),
+            "permitted_values": ("Male", "Female")
         },
         "age": {
+            "required": func_and_desc(
+                lambda person: person['gender']=='Female',
+                "Required if gender is female"),
+            "type": int,
             "validators": [
-                is_a_type_of(int),
                 func_and_desc(
                     lambda age, person: (False, "Too old")
                     if age > 40 else (True, None),
                     "Has to be less than 40")
-            ],
-            "required": func_and_desc(
-                lambda person: person['gender']=='Female',
-                "If gender is female")
+            ]
+        },
+        "access_levels": {
+            "type": list,
+            "list_item_type": int,
+            "permitted_values_for_list_items": range(1, 10)
         }
-    }
+    },
 }
 
 org_schema = {
     "fields": {
         "name": {
-            "required": True
+            "required": True,
+            "type": (str, unicode)
+
         },
         "ceo": {
-            "schema": person_schema,
-            "rel_type": "scalar"
+            "required": True,
+            "type": dict,
+            "dict_schema": person_schema
         },
         "members": {
-            "schema": person_schema,
-            "rel_type": "list"
+            "required": True,
+            "type": list,
+            "list_item_type": dict,
+            "list_item_schema": person_schema
         }
     },
     "validators": [
@@ -168,28 +157,164 @@ org_schema = {
             lambda org: (False, "Non member cannot be CEO")
             if org["ceo"] not in org["members"] else (True, None),
             "Non member cannot be CEO")
-    ]
+    ],
+    "allow_unknown_fields": True
 }
 
-
-if __name__ == '__main__':
-    isaac = {"gender": "Male", "name": "Isaac"}
-    surya = {"gender": "Male", "name": "Surya", "age": "h"}
-    senthil = {"gender": "Male", "name": "Senthil"}
-    sharanya = {"gender": "Female", "name": "Sharanya"}
-    inkmonk = {
-        "name": "Inkmonk",
-        "ceo": isaac,
-        "members": [surya, senthil, sharanya]
-
-    }
-    print validate_object(person_schema, surya)
-    print validate_object(org_schema, inkmonk)
-
-    print json.loads(schema_to_json(person_schema))
-
-    print json.loads(schema_to_json(org_schema))
 ```
+
+And some data to validate against the schema
+
+```python
+    isaac = {"gender": "Male", "name": "Isaac", "age": "new", "access_levels": [1,4,60]}
+    surya = {"gender": "Male", "name": "Surya", "age": "h", "city": "Chennai"}
+    senthil = {"gender": "Male", "name": "Senthil"}
+    mrx = {"gender": "m", "name": "x"}
+    sharanya = {
+        "gender": "Female", "name": "Sharanya",
+        "access_levels": [4, 5, 60]}
+```
+
+Lets first validate some persons
+
+```python
+validate_object(person_schema, mrx)
+```
+Output is
+
+```python
+(False,
+ {
+    'FIELD_LEVEL_ERRORS': {
+        'gender': {
+            'PERMITTED_VALUES_ERROR': 'Field data can be one of the following only: Male/Female'
+        }
+    }
+})
+ ```
+
+Another person
+
+```python
+validate_object(person_schema, surya)
+```
+
+Output
+
+```python
+(False,
+ {
+    'FIELD_LEVEL_ERRORS': {
+        'age': {
+            'HAS_TO_BE_LESS_THAN_40': 'Too old',
+            'TYPE_ERROR': 'Field data should be of type int'
+        }
+    },
+  'UNKNOWN_FIELDS': ['city']
+})
+```
+
+Now validating the same person, but allowing unknown fields
+
+```python
+validate_object(person_schema, surya)
+```
+
+Output
+
+```python
+(False,
+ {
+    'FIELD_LEVEL_ERRORS': {
+        'age': {
+            'HAS_TO_BE_LESS_THAN_40': 'Too old',
+            'TYPE_ERROR': 'Field data should be of type int'
+        }
+    }
+})
+```
+
+Finally lets create an organization and validate it
+
+```python
+inkmonk = {
+    "name": "Inkmonk",
+    "ceo": isaac,
+    "members": [surya, senthil, sharanya],
+    "city": "Chennai"
+}
+validate_object(org_schema, inkmonk, allow_unknown_fields=False)
+```
+
+Output
+
+
+```python
+
+(False,
+{
+    'FIELD_LEVEL_ERRORS': {
+        'ceo': {
+            'VALIDATION_ERRORS_FOR_OBJECT': {
+                'FIELD_LEVEL_ERRORS': {
+                    'access_levels': {
+                        'VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST': [
+                            None,
+                            None,
+                            {
+                                'PERMITTED_VALUES_ERROR': 'Field data can be one of the following only: 1/2/3/4/5/6/7/8/9'
+                            }
+                        ]
+                    },
+                    'age': {
+                        'HAS_TO_BE_LESS_THAN_40': 'Too old',
+                        'TYPE_ERROR': 'Field data should be of type int'
+                    }
+                }
+            }
+        },
+        'members': {
+            'VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST': [
+                {
+                    'FIELD_LEVEL_ERRORS': {
+                        'age': {
+                            'HAS_TO_BE_LESS_THAN_40': 'Too old',
+                            'TYPE_ERROR': 'Field data should be of type int'
+                        }
+                    },
+                    'UNKNOWN_FIELDS': ['city']
+                },
+                None,
+                {
+                    'FIELD_LEVEL_ERRORS': {
+                        'access_levels': {
+                            'VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST': [
+                                None,
+                                None,
+                                {
+                                    'PERMITTED_VALUES_ERROR': 'Field data can be one of the following only: 1/2/3/4/5/6/7/8/9'
+                                }
+                            ]
+                        },
+                        'age': {
+                            'MISSING_FIELD_ERROR': 'Required if gender is female'
+                        }
+                    },
+                    'MISSING_FIELDS': ['age']
+                }
+            ]
+        }
+    },
+  'SCHEMA_LEVEL_ERRORS': ['Non member cannot be CEO'],
+  'UNKNOWN_FIELDS': ['city']
+})
+```
+
+Here the input data had a list of objects called members. The first member had some field level errors. The third member had some schema level errors. The second member had no errors.
+
+Since the errors are shown at all levels - it becomes possible to directly apply this on a GUI client for example ( the errors can be shown granularly next to each nested field.)
+
+(Check the full example at example.py)
 
 The decorator `func_and_desc` is used to give a human readable name to a validator. If this is used, when the schema is serialized, the validators will also have readable names. If this decorator is not used, the validator will get serialized using the function name (or `Unnamed function` if there is no function name)
 

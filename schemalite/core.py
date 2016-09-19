@@ -93,19 +93,19 @@ def validate_object(schema, data, allow_unknown_fields=None):
                         validation_result, validation_errors = validate_object(
                             dict_schema, data[field_name])
                         if not validation_result:
-                            field_errors['TARGET_OBJECT_ERRORS'] = validation_errors
+                            field_errors['VALIDATION_ERRORS_FOR_OBJECT'] = validation_errors
                             field_is_valid = field_is_valid and validation_result
                             is_valid = is_valid and validation_result
                     elif field_type == list:
                         list_item_type = field_props.get('list_item_type')
-                        field_errors['TARGET_LIST_ERRORS'] = []
+                        field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'] = []
                         if type(list_item_type) == type:
                             if list_item_type == dict:
                                 list_item_schema = field_props.get('list_item_schema')
                                 validation_result, validation_errors = validate_list_of_objects(
                                     list_item_schema, data[field_name])
                                 if not validation_result:
-                                    field_errors['TARGET_LIST_ERRORS'] = validation_errors
+                                    field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'] = validation_errors
                                     field_is_valid = field_is_valid and validation_result
                                     is_valid = is_valid and validation_result
                             else:
@@ -113,27 +113,27 @@ def validate_object(schema, data, allow_unknown_fields=None):
                                     if not isinstance(item, list_item_type):
                                         field_is_valid = False
                                         is_valid = False
-                                        field_errors['TARGET_LIST_ERRORS'].append(
+                                        field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(
                                             {"TYPE_ERROR": "Item should be of type {0}".format(list_item_type.__name__)})
                                     else:
-                                        field_errors['TARGET_LIST_ERRORS'].append(None)
+                                        field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(None)
                         elif type(list_item_type) == tuple:
                             for item in data[field_name]:
                                 if not any(isinstance(item, t) for t in list_item_type):
                                     field_is_valid = False
                                     is_valid = False
-                                    field_errors['TARGET_LIST_ERRORS'].append(
+                                    field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(
                                         {"TYPE_ERROR": "Item should be of type {0}".format(
                                             "/".join([t.__name__ for t in list_item_type]))})
                                 else:
-                                    field_errors['TARGET_LIST_ERRORS'].append(None)
+                                    field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(None)
 
                         if 'permitted_values_for_list_items' in field_props:
                             for idx, item in enumerate(data[field_name]):
                                 if item not in field_props['permitted_values_for_list_items']:
-                                    if field_errors['TARGET_LIST_ERRORS'][idx] is None:
-                                        field_errors['TARGET_LIST_ERRORS'][idx] = {}
-                                    field_errors['TARGET_LIST_ERRORS'][idx]['PERMITTED_VALUES_ERROR'] = "Field data can be one of the following only: {0}".format(
+                                    if field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'][idx] is None:
+                                        field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'][idx] = {}
+                                    field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'][idx]['PERMITTED_VALUES_ERROR'] = "Field data can be one of the following only: {0}".format(
                                         "/".join([str(v) for v in field_props['permitted_values_for_list_items']]))
                                     field_is_valid = False
                                     is_valid = False
@@ -167,7 +167,7 @@ def validate_object(schema, data, allow_unknown_fields=None):
             #         validation_result, validation_errors = validate_object(
             #             field_schema, data[field_name])
             #     if not validation_result:
-            #         field_errors['TARGET_OBJECT_ERRORS'] = validation_errors
+            #         field_errors['VALIDATION_ERRORS_FOR_OBJECT'] = validation_errors
             #         field_is_valid = field_is_valid and validation_result
             #         is_valid = is_valid and validation_result
 

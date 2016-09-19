@@ -41,12 +41,6 @@ person_schema = {
             "required": True,
             "type": (str, unicode),
             "permitted_values": ("Male", "Female")
-            # "validators": [
-            #     func_and_desc(
-            #         lambda gender, person: (False, "Invalid value")
-            #         if gender not in ("Male", "Female") else (True, None),
-            #         "Must be either male or female")
-            # ]
         },
         "age": {
             "required": func_and_desc(
@@ -114,8 +108,8 @@ def validate_rels(obj):
         validate_object(ds_schema, v)
 
 if __name__ == '__main__':
-    isaac = {"gender": "Male", "name": "Isaac"}
-    surya = {"gender": "Male", "name": "Surya", "age": "h", "city":"Chennai"}
+    isaac = {"gender": "Male", "name": "Isaac", "age": "new", "access_levels": [1,4,60]}
+    surya = {"gender": "Male", "name": "Surya", "age": "h", "city": "Chennai"}
     senthil = {"gender": "Male", "name": "Senthil"}
     mrx = {"gender": "m", "name": "x"}
     sharanya = {
@@ -129,10 +123,10 @@ if __name__ == '__main__':
     }
     print validate_object(person_schema, sharanya)
     print validate_object(person_schema, mrx)
-    # print validate_object(person_schema, surya)
-    # print validate_object(person_schema, surya, True)
-    # print validate_object(org_schema, inkmonk)
-    # print validate_object(org_schema, inkmonk, False)
+    print validate_object(person_schema, surya)
+    print validate_object(person_schema, surya, True)
+    print validate_object(org_schema, inkmonk)
+    print validate_object(org_schema, inkmonk, False)
 
     # print json.loads(schema_to_json(person_schema))
 
