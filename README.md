@@ -310,7 +310,28 @@ Output
 })
 ```
 
-Here the input data had a list of objects called members. The first member had some field level errors. The third member had some schema level errors. The second member had no errors.
+###Understanding the errors output
+
+The library is structured to provide an error output to any nested level of granularity.
+
+At the outer most level, there are the following keys 
+
+"FIELD_LEVEL_ERRORS" - Contains the errors mapped to each field
+
+"SCHEMA_LEVEL_ERRORS" - A list of errors found for the schema as a whole
+
+"UNKNOWN_FIELDS" - If the validation is configured to not allow unknown fields and if the data had any, they will be listed here
+
+"MISSING_FIELDS" - List of all missing required fields.
+
+Inside 'FIELD_LEVEL_ERRORS', each field will have a dict of errors mapped to it. The keys of the dict are the names of the errors and values are the error strings. Example for an error dict for a field would be 
+    `{'TYPE_ERROR': "This field should have type int only"}` or `{"PERMITTED_VALUES_ERROR": "The object should have value high/low only"}
+
+If a particular field is of type `dict`, and if `dict_schema` is defined, then you can also expect to see a key named `VALIDATION_ERRORS_FOR_OBJECT` inside `errors['FIELD_LEVEL_ERRORS']['particular_field_name']`.  In that case `errors['FIELD_LEVEL_ERRORS']['particular_field_name']['VALIDATION_ERRORS_FOR_OBJECT']` will contain another errors object obtained by matching the data in this field alone against another schema ( So that errors object will in turn have FIELD_LEVEL_ERRORS, SCHEMA_LEVEL_ERRORS etc)
+
+If a particular field is of type `list` and if `list_type` is defined, then if there are validation errors for the objects in the list, you can expect to see `errors['FIELD_LEVEL_ERRORS']['particular_field_name']['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST']`. This will be a list of error objects. If the field is a list of primitive types, then you can expect each error object to have fields like `TYPE_ERROR` or `PERMITTED_VALUES_ERROR`.
+If it is a list of objects of another schema ( defined by `list_item_schema`), then each item in the errors list would be an error object got by validating against that schema - so it will have `FIELD_LEVEL_ERRORS`, `SCHEMA_LEVEL_ERRORS` etc. ( While iterating, if one item has no error, then instead of error object, it will have a null in the errors list at that index.)
+
 
 Since the errors are shown at all levels - it becomes possible to directly apply this on a GUI client for example ( the errors can be shown granularly next to each nested field.)
 
