@@ -34,29 +34,36 @@ class OrganizationSchema(Schema):
 person_schema = {
     "fields": {
         "name": {
-            "required": True
+            "required": True,
+            "type": (str, unicode)
         },
         "gender": {
             "required": True,
-            "validators": [
-                is_a_type_of(str, unicode),
-                func_and_desc(
-                    lambda gender, person: (False, "Invalid value")
-                    if gender not in ("Male", "Female") else (True, None),
-                    "Must be either male or female")
-            ]
+            "type": (str, unicode),
+            "permitted_values": ("Male", "Female")
+            # "validators": [
+            #     func_and_desc(
+            #         lambda gender, person: (False, "Invalid value")
+            #         if gender not in ("Male", "Female") else (True, None),
+            #         "Must be either male or female")
+            # ]
         },
         "age": {
+            "required": func_and_desc(
+                lambda person: person['gender']=='Female',
+                "Required if gender is female"),
+            "type": int,
             "validators": [
-                is_a_type_of(int),
                 func_and_desc(
                     lambda age, person: (False, "Too old")
                     if age > 40 else (True, None),
                     "Has to be less than 40")
-            ],
-            "required": func_and_desc(
-                lambda person: person['gender']=='Female',
-                "If gender is female")
+            ]
+        },
+        "access_levels": {
+            "type": list,
+            "list_item_type": int,
+            "permitted_values_for_list_items": range(1, 10)
         }
     },
 }
@@ -64,15 +71,20 @@ person_schema = {
 org_schema = {
     "fields": {
         "name": {
-            "required": True
+            "required": True,
+            "type": (str, unicode)
+
         },
         "ceo": {
-            "target_schema": person_schema,
-            "target_relation_type": "scalar"
+            "required": True,
+            "type": dict,
+            "dict_schema": person_schema
         },
         "members": {
-            "target_schema": person_schema,
-            "target_relation_type": "list"
+            "required": True,
+            "type": list,
+            "list_item_type": dict,
+            "list_item_schema": person_schema
         }
     },
     "validators": [
@@ -105,32 +117,37 @@ if __name__ == '__main__':
     isaac = {"gender": "Male", "name": "Isaac"}
     surya = {"gender": "Male", "name": "Surya", "age": "h", "city":"Chennai"}
     senthil = {"gender": "Male", "name": "Senthil"}
-    sharanya = {"gender": "Female", "name": "Sharanya"}
+    mrx = {"gender": "m", "name": "x"}
+    sharanya = {
+        "gender": "Female", "name": "Sharanya",
+        "access_levels": [4, 5, 60]}
     inkmonk = {
         "name": "Inkmonk",
         "ceo": isaac,
         "members": [surya, senthil, sharanya],
         "city": "Chennai"
     }
-    print validate_object(person_schema, surya)
-    print validate_object(person_schema, surya, True)
-    print validate_object(org_schema, inkmonk)
-    print validate_object(org_schema, inkmonk, False)
+    print validate_object(person_schema, sharanya)
+    print validate_object(person_schema, mrx)
+    # print validate_object(person_schema, surya)
+    # print validate_object(person_schema, surya, True)
+    # print validate_object(org_schema, inkmonk)
+    # print validate_object(org_schema, inkmonk, False)
 
-    print json.loads(schema_to_json(person_schema))
+    # print json.loads(schema_to_json(person_schema))
 
-    print json.loads(schema_to_json(org_schema))
+    # print json.loads(schema_to_json(org_schema))
 
-    ds = {
-        "attrs": ["id"],
-        "rels": {
-            "user": {
-                "attrs": ["id"]
-            }
-        }
-    }
+    # ds = {
+    #     "attrs": ["id"],
+    #     "rels": {
+    #         "user": {
+    #             "attrs": ["id"]
+    #         }
+    #     }
+    # }
 
-    print validate_object(ds_schema, ds)
+    # print validate_object(ds_schema, ds)
 
     # ricky = {'gender': 'M', 'age': 80}
 
