@@ -12,61 +12,6 @@ Because I started writing it before I came across Cerberus, Marshmallow and Sche
 
 And also because, while the other libraries have powerful DSLs, they also have too big an API for my simple needs. This library has only one concept I need to keep in mind - A validator is a function that will return a tuple like (False, "Some error message") or (True, None). Thats all.
 
-Example for a schema object:
-
-```python
-person_schema = {
-    "fields": {
-        "name": {
-            "required": True
-        },
-        "gender": {
-            "required": True,
-            "validators": [
-                is_a_type_of(str, unicode),
-                func_and_desc(
-                    lambda gender, person: (False, "Invalid value")
-                    if gender not in ("Male", "Female") else (True, None),
-                    "Must be either male or female")
-            ]
-        },
-        "age": {
-            "validators": [
-                is_a_type_of(int),
-                func_and_desc(
-                    lambda age, person: (False, "Too old")
-                    if age > 40 else (True, None),
-                    "Has to be less than 40")
-            ],
-            "required": func_and_desc(
-                lambda person: person['gender']=='Female',
-                "If gender is female")
-        }
-    }
-}
-
-org_schema = {
-    "fields": {
-        "name": {
-            "required": True
-        },
-        "ceo": {
-            "target_schema": person_schema,
-            "targe_relation_type": "scalar"
-        },
-        "members": {
-            "target_schema": person_schema,
-            "target_relation_type": "list"
-        }
-    },
-    "validators": [
-        func_and_desc(
-            lambda org: (False, "Non member cannot be CEO")
-            if org["ceo"] not in org["members"] else (True, None),
-            "Non member cannot be CEO")
-    ]
-}
-```
 
 A schema is a `dict` with 2 keys - "fields" and "validators"
 
