@@ -3,7 +3,7 @@ from .core import func_and_desc
 
 
 def is_a_type_of(*types):
-    def validator(o, data):
+    def validator(o, data, schema, context=None):
         if not any(isinstance(o, _type) for _type in types):
             return (
                 False,
@@ -16,7 +16,7 @@ def is_a_type_of(*types):
 
 
 def is_a_list_of_types_of(*types):
-    def validator(olist, data):
+    def validator(olist, data, schema, context=None):
         valid = True
         if not isinstance(olist, list):
             return (False, "Not a list")

@@ -1,7 +1,7 @@
 import json
 
 
-def validate_object(schema, data, allow_unknown_fields=None, allow_required_fields_to_be_skipped=None):
+def validate_object(schema, data, allow_unknown_fields=None, allow_required_fields_to_be_skipped=None, context=None):
     """
         person_schema = {
             "fields": {
@@ -77,7 +77,7 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
                 required = field_props.get('required', False)
                 if callable(required):
                     error_message = required.desc or required.__name__
-                    required = required(data)
+                    required = required(data, schema=schema, context=context)
                 else:
                     error_message = '%s is a required field' % field_name
                 if required:
@@ -93,7 +93,7 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
             allowed = field_props.get("allowed", True)
             if callable(allowed):
                 error_message = allowed.desc or allowed.__name__
-                allowed = allowed(data)
+                allowed = allowed(data, schema=schema, context=context)
             else:
                 error_message = '%s is not an allowed field' % field_name
             if allowed == False:
@@ -108,7 +108,8 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
                             dict_schema = field_props.get('dict_schema')
                             validation_result, validation_errors = validate_object(
                                 dict_schema, data[field_name], allow_unknown_fields=allow_unknown_fields,
-                                allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped)
+                                allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped,
+                                context=context)
                             if not validation_result:
                                 field_errors['VALIDATION_ERRORS_FOR_OBJECT'] = validation_errors
                                 field_is_valid = field_is_valid and validation_result
@@ -121,7 +122,8 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
                                     list_item_schema = field_props.get('list_item_schema')
                                     validation_result, validation_errors = validate_list_of_objects(
                                         list_item_schema, data[field_name], allow_unknown_fields=allow_unknown_fields,
-                                        allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped)
+                                        allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped,
+                                        context=context)
                                     if not validation_result:
                                         field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'] = validation_errors
                                         field_is_valid = field_is_valid and validation_result
@@ -177,7 +179,7 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
                 for _validator in field_props.get('validators', []):
                     if _validator is None:
                         continue
-                    validation_result, validation_errors = _validator(data[field_name], data)
+                    validation_result, validation_errors = _validator(data[field_name], data, schema=schema, context=context)
                     if not validation_result:
                         validator_name = _validator.desc.upper() or _validator.__name__.upper()
                         validator_name = validator_name.replace(" ", "_")
@@ -192,7 +194,7 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
                 errors['FIELD_LEVEL_ERRORS'] = {}
             errors['FIELD_LEVEL_ERRORS'][field_name] = field_errors
     for schema_validator in schema.get("validators", []):
-        validation_result, validation_errors = schema_validator(data)
+        validation_result, validation_errors = schema_validator(data, schema=schema, context=context)
         if validation_result is False:
             if errors is None:
                 errors = {}
@@ -204,7 +206,7 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
     return (is_valid, errors)
 
 
-def validate_list_of_objects(schema, datalist, allow_unknown_fields=None, allow_required_fields_to_be_skipped=None):
+def validate_list_of_objects(schema, datalist, allow_unknown_fields=None, allow_required_fields_to_be_skipped=None, context=None):
     is_valid = True
     errors = []
     if not isinstance(datalist, list):
@@ -212,7 +214,8 @@ def validate_list_of_objects(schema, datalist, allow_unknown_fields=None, allow_
     for datum in datalist:
         datum_validity, datum_errors = validate_object(
             schema, datum, allow_unknown_fields=allow_unknown_fields,
-            allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped)
+            allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped,
+            context=context)
         if datum_validity is False:
             errors.append(datum_errors)
         else:

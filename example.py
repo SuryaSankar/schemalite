@@ -44,12 +44,12 @@ person_schema = {
         },
         "age": {
             "required": func_and_desc(
-                lambda person: person.get('gender')=='Female',
+                lambda person, schema, context: person.get('gender')=='Female',
                 "Required if gender is female"),
             "type": int,
             "validators": [
                 func_and_desc(
-                    lambda age, person: (False, "Too old")
+                    lambda age, person, schema, context: (False, "Too old")
                     if age > 40 else (True, None),
                     "Has to be less than 40")
             ]
@@ -83,7 +83,7 @@ org_schema = {
     },
     "validators": [
         func_and_desc(
-            lambda org: (False, "Non member cannot be CEO")
+            lambda org, schema, context: (False, "Non member cannot be CEO")
             if org.get("ceo") not in org.get("members") else (True, None),
             "Non member cannot be CEO")
     ],
