@@ -1,7 +1,7 @@
 import json
 
 
-def validate_object(schema, data, allow_unknown_fields=None):
+def validate_object(schema, data, allow_unknown_fields=None, allow_required_fields_to_be_skipped=None):
     """
         person_schema = {
             "fields": {
@@ -51,6 +51,8 @@ def validate_object(schema, data, allow_unknown_fields=None):
     fields = schema["fields"]
     if allow_unknown_fields is None:
         allow_unknown_fields = schema.get('allow_unknown_fields', False)
+    if allow_required_fields_to_be_skipped is None:
+        allow_required_fields_to_be_skipped = schema.get('allow_required_fields_to_be_skipped', False)
     if not allow_unknown_fields:
         for k in data.keys():
             if k not in fields.keys():
@@ -69,118 +71,119 @@ def validate_object(schema, data, allow_unknown_fields=None):
         field_errors = {}
         field_is_valid = True
         if field_name not in data:
-            required = field_props.get('required', False)
-            if callable(required):
-                error_message = required.desc or required.__name__
-                required = required(data)
+            if allow_required_fields_to_be_skipped:
+                continue
             else:
-                error_message = '%s is a required field' % field_name
-            if required:
+                required = field_props.get('required', False)
+                if callable(required):
+                    error_message = required.desc or required.__name__
+                    required = required(data)
+                else:
+                    error_message = '%s is a required field' % field_name
+                if required:
+                    is_valid = False
+                    field_is_valid = False
+                    if errors is None:
+                        errors = {}
+                    if 'MISSING_FIELDS' not in errors:
+                        errors['MISSING_FIELDS'] = []
+                    errors['MISSING_FIELDS'].append(field_name)
+                    field_errors['MISSING_FIELD_ERROR'] = error_message
+        else:
+            allowed = field_props.get("allowed", True)
+            if callable(allowed):
+                error_message = allowed.desc or allowed.__name__
+                allowed = allowed(data)
+            else:
+                error_message = '%s is not an allowed field' % field_name
+            if allowed == False:
                 is_valid = False
                 field_is_valid = False
-                if errors is None:
-                    errors = {}
-                if 'MISSING_FIELDS' not in errors:
-                    errors['MISSING_FIELDS'] = []
-                errors['MISSING_FIELDS'].append(field_name)
-                field_errors['MISSING_FIELD_ERROR'] = error_message
-        else:
-            field_type = field_props.get('type')
-            if field_type is not None:
-                if type(field_type) == type:
-                    if field_type == dict:
-                        dict_schema = field_props.get('dict_schema')
-                        validation_result, validation_errors = validate_object(
-                            dict_schema, data[field_name])
-                        if not validation_result:
-                            field_errors['VALIDATION_ERRORS_FOR_OBJECT'] = validation_errors
-                            field_is_valid = field_is_valid and validation_result
-                            is_valid = is_valid and validation_result
-                    elif field_type == list:
-                        list_item_type = field_props.get('list_item_type')
-                        field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'] = []
-                        if type(list_item_type) == type:
-                            if list_item_type == dict:
-                                list_item_schema = field_props.get('list_item_schema')
-                                validation_result, validation_errors = validate_list_of_objects(
-                                    list_item_schema, data[field_name])
-                                if not validation_result:
-                                    field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'] = validation_errors
-                                    field_is_valid = field_is_valid and validation_result
-                                    is_valid = is_valid and validation_result
-                            else:
+                field_errors['FIELD_NOT_ALLOWED_ERROR'] = error_message
+            else:
+                field_type = field_props.get('type')
+                if field_type is not None:
+                    if type(field_type) == type:
+                        if field_type == dict:
+                            dict_schema = field_props.get('dict_schema')
+                            validation_result, validation_errors = validate_object(
+                                dict_schema, data[field_name], allow_unknown_fields=allow_unknown_fields,
+                                allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped)
+                            if not validation_result:
+                                field_errors['VALIDATION_ERRORS_FOR_OBJECT'] = validation_errors
+                                field_is_valid = field_is_valid and validation_result
+                                is_valid = is_valid and validation_result
+                        elif field_type == list:
+                            list_item_type = field_props.get('list_item_type')
+                            field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'] = []
+                            if type(list_item_type) == type:
+                                if list_item_type == dict:
+                                    list_item_schema = field_props.get('list_item_schema')
+                                    validation_result, validation_errors = validate_list_of_objects(
+                                        list_item_schema, data[field_name], allow_unknown_fields=allow_unknown_fields,
+                                        allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped)
+                                    if not validation_result:
+                                        field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'] = validation_errors
+                                        field_is_valid = field_is_valid and validation_result
+                                        is_valid = is_valid and validation_result
+                                else:
+                                    for item in data[field_name]:
+                                        if not isinstance(item, list_item_type):
+                                            field_is_valid = False
+                                            is_valid = False
+                                            field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(
+                                                {"TYPE_ERROR": "Item should be of type {0}".format(list_item_type.__name__)})
+                                        else:
+                                            field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(None)
+                            elif type(list_item_type) == tuple:
                                 for item in data[field_name]:
-                                    if not isinstance(item, list_item_type):
+                                    if not any(isinstance(item, t) for t in list_item_type):
                                         field_is_valid = False
                                         is_valid = False
                                         field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(
-                                            {"TYPE_ERROR": "Item should be of type {0}".format(list_item_type.__name__)})
+                                            {"TYPE_ERROR": "Item should be of type {0}".format(
+                                                "/".join([t.__name__ for t in list_item_type]))})
                                     else:
                                         field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(None)
-                        elif type(list_item_type) == tuple:
-                            for item in data[field_name]:
-                                if not any(isinstance(item, t) for t in list_item_type):
-                                    field_is_valid = False
-                                    is_valid = False
-                                    field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(
-                                        {"TYPE_ERROR": "Item should be of type {0}".format(
-                                            "/".join([t.__name__ for t in list_item_type]))})
-                                else:
-                                    field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(None)
 
-                        if 'permitted_values_for_list_items' in field_props:
-                            for idx, item in enumerate(data[field_name]):
-                                if item not in field_props['permitted_values_for_list_items']:
-                                    if field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'][idx] is None:
-                                        field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'][idx] = {}
-                                    field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'][idx]['PERMITTED_VALUES_ERROR'] = "Field data can be one of the following only: {0}".format(
-                                        "/".join([str(v) for v in field_props['permitted_values_for_list_items']]))
-                                    field_is_valid = False
-                                    is_valid = False
+                            if 'permitted_values_for_list_items' in field_props:
+                                for idx, item in enumerate(data[field_name]):
+                                    if item not in field_props['permitted_values_for_list_items']:
+                                        if field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'][idx] is None:
+                                            field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'][idx] = {}
+                                        field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'][idx]['PERMITTED_VALUES_ERROR'] = "Field data can be one of the following only: {0}".format(
+                                            "/".join([str(v) for v in field_props['permitted_values_for_list_items']]))
+                                        field_is_valid = False
+                                        is_valid = False
 
-                    elif not isinstance(data[field_name], field_type):
-                        field_errors['TYPE_ERROR'] = "Field data should be of type {0}".format(field_type.__name__)
-                        field_is_valid = False
-                        is_valid = False
-                elif type(field_type) == tuple:
-                    if not any(isinstance(data[field_name], t) for t in field_type):
-                        field_errors['TYPE_ERROR'] = "Field data should be of type {0}".format(
-                            "/".join([t.__name__ for t in field_type]))
+                        elif not isinstance(data[field_name], field_type):
+                            field_errors['TYPE_ERROR'] = "Field data should be of type {0}".format(field_type.__name__)
+                            field_is_valid = False
+                            is_valid = False
+                    elif type(field_type) == tuple:
+                        if not any(isinstance(data[field_name], t) for t in field_type):
+                            field_errors['TYPE_ERROR'] = "Field data should be of type {0}".format(
+                                "/".join([t.__name__ for t in field_type]))
+                            field_is_valid = False
+                            is_valid = False
+
+                if 'permitted_values' in field_props:
+                    if data[field_name] not in field_props['permitted_values']:
+                        field_errors['PERMITTED_VALUES_ERROR'] = "Field data can be one of the following only: {0}".format(
+                            "/".join([v for v in field_props['permitted_values']]))
                         field_is_valid = False
                         is_valid = False
 
-            if 'permitted_values' in field_props:
-                if data[field_name] not in field_props['permitted_values']:
-                    field_errors['PERMITTED_VALUES_ERROR'] = "Field data can be one of the following only: {0}".format(
-                        "/".join([v for v in field_props['permitted_values']]))
-                    field_is_valid = False
-                    is_valid = False
-
-            # field_schema = field_props.get('target_schema')
-            # field_errors = {}
-            # field_is_valid = True
-            # if field_schema:
-            #     if field_props.get('target_relation_type') == 'list':
-            #         validation_result, validation_errors = validate_list_of_objects(
-            #             field_schema, data[field_name])
-            #     else:
-            #         validation_result, validation_errors = validate_object(
-            #             field_schema, data[field_name])
-            #     if not validation_result:
-            #         field_errors['VALIDATION_ERRORS_FOR_OBJECT'] = validation_errors
-            #         field_is_valid = field_is_valid and validation_result
-            #         is_valid = is_valid and validation_result
-
-            for _validator in field_props.get('validators', []):
-                if _validator is None:
-                    continue
-                validation_result, validation_errors = _validator(data[field_name], data)
-                if not validation_result:
-                    validator_name = _validator.desc.upper() or _validator.__name__.upper()
-                    validator_name = validator_name.replace(" ", "_")
-                    field_errors[validator_name] = validation_errors
-                    field_is_valid = field_is_valid and validation_result
-                    is_valid = is_valid and validation_result
+                for _validator in field_props.get('validators', []):
+                    if _validator is None:
+                        continue
+                    validation_result, validation_errors = _validator(data[field_name], data)
+                    if not validation_result:
+                        validator_name = _validator.desc.upper() or _validator.__name__.upper()
+                        validator_name = validator_name.replace(" ", "_")
+                        field_errors[validator_name] = validation_errors
+                        field_is_valid = field_is_valid and validation_result
+                        is_valid = is_valid and validation_result
 
         if not field_is_valid:
             if errors is None:
@@ -201,14 +204,15 @@ def validate_object(schema, data, allow_unknown_fields=None):
     return (is_valid, errors)
 
 
-def validate_list_of_objects(schema, datalist, allow_unknown_fields=None):
+def validate_list_of_objects(schema, datalist, allow_unknown_fields=None, allow_required_fields_to_be_skipped=None):
     is_valid = True
     errors = []
     if not isinstance(datalist, list):
         return (False, "Expected a list")
     for datum in datalist:
         datum_validity, datum_errors = validate_object(
-            schema, datum, allow_unknown_fields=allow_unknown_fields)
+            schema, datum, allow_unknown_fields=allow_unknown_fields,
+            allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped)
         if datum_validity is False:
             errors.append(datum_errors)
         else:

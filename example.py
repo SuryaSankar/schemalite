@@ -44,7 +44,7 @@ person_schema = {
         },
         "age": {
             "required": func_and_desc(
-                lambda person: person['gender']=='Female',
+                lambda person: person.get('gender')=='Female',
                 "Required if gender is female"),
             "type": int,
             "validators": [
@@ -84,7 +84,7 @@ org_schema = {
     "validators": [
         func_and_desc(
             lambda org: (False, "Non member cannot be CEO")
-            if org["ceo"] not in org["members"] else (True, None),
+            if org.get("ceo") not in org.get("members") else (True, None),
             "Non member cannot be CEO")
     ],
     "allow_unknown_fields": True
@@ -124,9 +124,11 @@ if __name__ == '__main__':
     print validate_object(person_schema, sharanya)
     print validate_object(person_schema, mrx)
     print validate_object(person_schema, surya)
-    print validate_object(person_schema, surya, True)
+    print validate_object(person_schema, surya, allow_unknown_fields=True)
     print validate_object(org_schema, inkmonk)
-    print validate_object(org_schema, inkmonk, False)
+    print validate_object(org_schema, inkmonk, allow_unknown_fields=False)
+    print validate_object(person_schema, {}, allow_required_fields_to_be_skipped=True)
+    print validate_object(person_schema, {})
 
     # print json.loads(schema_to_json(person_schema))
 
