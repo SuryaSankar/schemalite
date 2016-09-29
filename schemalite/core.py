@@ -1,5 +1,25 @@
 import json
+from datetime import date, datetime
+import dateutil
 
+
+def instance_of(item, type_):
+    if type_ == datetime:
+        if isinstance(item, datetime):
+            return True
+        elif isinstance(item, str) or isinstance(item, unicode):
+            return isinstance(dateutil.parser.parse(item), datetime)
+        else:
+            return False
+    elif type_ == date:
+        if isinstance(item, date):
+            return True
+        elif isinstance(item, str) or isinstance(item, unicode):
+            return isinstance(dateutil.parser.parse(item), datetime)
+        else:
+            return False
+    else:
+        return isinstance(item, type_)
 
 def validate_object(schema, data, allow_unknown_fields=None, allow_required_fields_to_be_skipped=None, context=None):
     """
@@ -130,7 +150,7 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
                                         is_valid = is_valid and validation_result
                                 else:
                                     for item in data[field_name]:
-                                        if not isinstance(item, list_item_type):
+                                        if not instance_of(item, list_item_type):
                                             field_is_valid = False
                                             is_valid = False
                                             field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(
@@ -139,7 +159,7 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
                                             field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(None)
                             elif type(list_item_type) == tuple:
                                 for item in data[field_name]:
-                                    if not any(isinstance(item, t) for t in list_item_type):
+                                    if not any(instance_of(item, t) for t in list_item_type):
                                         field_is_valid = False
                                         is_valid = False
                                         field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(
@@ -158,12 +178,12 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
                                         field_is_valid = False
                                         is_valid = False
 
-                        elif not isinstance(data[field_name], field_type):
+                        elif not instance_of(data[field_name], field_type):
                             field_errors['TYPE_ERROR'] = "Field data should be of type {0}".format(field_type.__name__)
                             field_is_valid = False
                             is_valid = False
                     elif type(field_type) == tuple:
-                        if not any(isinstance(data[field_name], t) for t in field_type):
+                        if not any(instance_of(data[field_name], t) for t in field_type):
                             field_errors['TYPE_ERROR'] = "Field data should be of type {0}".format(
                                 "/".join([t.__name__ for t in field_type]))
                             field_is_valid = False
