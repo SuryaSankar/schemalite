@@ -21,7 +21,9 @@ def instance_of(item, type_):
     else:
         return isinstance(item, type_)
 
-def validate_object(schema, data, allow_unknown_fields=None, allow_required_fields_to_be_skipped=None, context=None):
+def validate_object(schema, data, allow_unknown_fields=None,
+                    allow_required_fields_to_be_skipped=None, context=None,
+                    polymorphic_identity=None):
     """
         person_schema = {
             "fields": {
@@ -68,11 +70,26 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
     """
     is_valid = True
     errors = None
-    fields = schema["fields"]
+    if not isinstance(data, dict):
+        return (False, {'TYPE_ERROR': "Object is not a dict"})
     if allow_unknown_fields is None:
         allow_unknown_fields = schema.get('allow_unknown_fields', False)
     if allow_required_fields_to_be_skipped is None:
         allow_required_fields_to_be_skipped = schema.get('allow_required_fields_to_be_skipped', False)
+    fields = schema["fields"]
+    schema_validators = schema.get("validators", [])
+    polymorphic_field = schema.get('polymorphic_on')
+    if polymorphic_field:
+        if polymorphic_identity is None:
+            polymorphic_identity = data.get(polymorphic_field)
+        if polymorphic_identity:
+            additional_schema_for_polymorph = schema.get("additional_schema_for_polymorphs", {}).get(polymorphic_identity, {})
+            for k, v in additional_schema_for_polymorph.get("fields", {}).items():
+                fields[k] = v
+            schema_validators += additional_schema_for_polymorph.get("validators", [])
+    print
+    print fields.keys()
+    print
     if not allow_unknown_fields:
         for k in data.keys():
             if k not in fields.keys():
@@ -82,11 +99,6 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
                 if 'UNKNOWN_FIELDS' not in errors:
                     errors['UNKNOWN_FIELDS'] = []
                 errors['UNKNOWN_FIELDS'].append(k)
-    if not isinstance(data, dict):
-        if errors is None:
-            errors = {}
-        errors['TYPE_ERROR'] = "Object is not a dict"
-        return (False, errors)
     for field_name, field_props in fields.items():
         field_errors = {}
         field_is_valid = True
@@ -121,6 +133,7 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
                 field_is_valid = False
                 field_errors['FIELD_NOT_ALLOWED_ERROR'] = error_message
             else:
+                print "checking %s" % field_name
                 field_type = field_props.get('type')
                 if field_type is not None:
                     if type(field_type) == type:
@@ -135,11 +148,13 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
                                 field_is_valid = field_is_valid and validation_result
                                 is_valid = is_valid and validation_result
                         elif field_type == list:
+                            print "field type is list"
                             list_item_type = field_props.get('list_item_type')
                             field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'] = []
                             if type(list_item_type) == type:
                                 if list_item_type == dict:
                                     list_item_schema = field_props.get('list_item_schema')
+                                    print "checking list item schema for %s" % field_name
                                     validation_result, validation_errors = validate_list_of_objects(
                                         list_item_schema, data[field_name], allow_unknown_fields=allow_unknown_fields,
                                         allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped,
@@ -213,7 +228,7 @@ def validate_object(schema, data, allow_unknown_fields=None, allow_required_fiel
             if 'FIELD_LEVEL_ERRORS' not in errors:
                 errors['FIELD_LEVEL_ERRORS'] = {}
             errors['FIELD_LEVEL_ERRORS'][field_name] = field_errors
-    for schema_validator in schema.get("validators", []):
+    for schema_validator in schema_validators:
         validation_result, validation_errors = schema_validator(data, schema=schema, context=context)
         if validation_result is False:
             if errors is None:
