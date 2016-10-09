@@ -87,9 +87,6 @@ def validate_object(schema, data, allow_unknown_fields=None,
             for k, v in additional_schema_for_polymorph.get("fields", {}).items():
                 fields[k] = v
             schema_validators += additional_schema_for_polymorph.get("validators", [])
-    print
-    print fields.keys()
-    print
     if not allow_unknown_fields:
         for k in data.keys():
             if k not in fields.keys():
@@ -133,7 +130,6 @@ def validate_object(schema, data, allow_unknown_fields=None,
                 field_is_valid = False
                 field_errors['FIELD_NOT_ALLOWED_ERROR'] = error_message
             else:
-                print "checking %s" % field_name
                 field_type = field_props.get('type')
                 if field_type is not None:
                     if type(field_type) == type:
@@ -148,13 +144,11 @@ def validate_object(schema, data, allow_unknown_fields=None,
                                 field_is_valid = field_is_valid and validation_result
                                 is_valid = is_valid and validation_result
                         elif field_type == list:
-                            print "field type is list"
                             list_item_type = field_props.get('list_item_type')
                             field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'] = []
                             if type(list_item_type) == type:
                                 if list_item_type == dict:
                                     list_item_schema = field_props.get('list_item_schema')
-                                    print "checking list item schema for %s" % field_name
                                     validation_result, validation_errors = validate_list_of_objects(
                                         list_item_schema, data[field_name], allow_unknown_fields=allow_unknown_fields,
                                         allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped,
