@@ -23,7 +23,9 @@ def instance_of(item, type_):
 
 def validate_object(schema, data, allow_unknown_fields=None,
                     allow_required_fields_to_be_skipped=None, context=None,
-                    polymorphic_identity=None):
+                    polymorphic_identity=None, siblings_list=None,
+                    parent_contexts=None, schemas_registry=None,
+                    curr_obj_idx_in_siblings_list=None):
     """
         person_schema = {
             "fields": {
@@ -107,7 +109,11 @@ def validate_object(schema, data, allow_unknown_fields=None,
                     required = field_props.get('required', False)
                     if callable(required):
                         error_message = required.desc or required.__name__
-                        required = required(data, schema=schema, context=context)
+                        required = required(
+                            data, schema=schema, context=context,
+                            parent_contexts=parent_contexts,
+                            siblings_list=siblings_list,
+                            curr_obj_idx_in_siblings_list=curr_obj_idx_in_siblings_list)
                     else:
                         error_message = '%s is a required field' % field_name
                     if required:
@@ -123,7 +129,11 @@ def validate_object(schema, data, allow_unknown_fields=None,
                 allowed = field_props.get("allowed", True)
                 if callable(allowed):
                     error_message = allowed.desc or allowed.__name__
-                    allowed = allowed(data, schema=schema, context=context)
+                    allowed = allowed(
+                        data, schema=schema, context=context,
+                        parent_contexts=parent_contexts,
+                        siblings_list=siblings_list,
+                        curr_obj_idx_in_siblings_list=curr_obj_idx_in_siblings_list)
                 else:
                     error_message = '%s is not an allowed field' % field_name
                 if allowed == False:
@@ -136,11 +146,20 @@ def validate_object(schema, data, allow_unknown_fields=None,
                         if type(field_type) == type:
                             if field_type == dict:
                                 dict_schema = field_props.get('dict_schema')
+                                if dict_schema is None:
+                                    rel_schema_cls_name = field_props.get('is_a_relation_to')
+                                    if rel_schema_cls_name and schemas_registry:
+                                        dict_schema = schemas_registry.get(rel_schema_cls_name)
                                 if dict_schema:
+                                    if isinstance(parent_contexts, list):
+                                        _parent_contexts = parent_contexts[:]
+                                        _parent_contexts.append(context)
+                                    else:
+                                        _parent_contexts = [context]
                                     validation_result, validation_errors = validate_object(
                                         dict_schema, data[field_name], allow_unknown_fields=allow_unknown_fields,
                                         allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped,
-                                        context=context)
+                                        parent_contexts=_parent_contexts)
                                     if not validation_result:
                                         field_errors['VALIDATION_ERRORS_FOR_OBJECT'] = validation_errors
                                         field_is_valid = field_is_valid and validation_result
@@ -151,11 +170,20 @@ def validate_object(schema, data, allow_unknown_fields=None,
                                 if type(list_item_type) == type:
                                     if list_item_type == dict:
                                         list_item_schema = field_props.get('list_item_schema')
+                                        if list_item_schema is None:
+                                            rel_schema_cls_name = field_props.get('is_a_relation_to')
+                                            if rel_schema_cls_name is not None and schemas_registry is not None:
+                                                list_item_schema = schemas_registry.get(rel_schema_cls_name.__name__)
                                         if list_item_schema:
+                                            if isinstance(parent_contexts, list):
+                                                _parent_contexts = parent_contexts[:]
+                                                _parent_contexts.append(context)
+                                            else:
+                                                _parent_contexts = [context]
                                             validation_result, validation_errors = validate_list_of_objects(
                                                 list_item_schema, data[field_name], allow_unknown_fields=allow_unknown_fields,
                                                 allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped,
-                                                context=context)
+                                                parent_contexts=_parent_contexts)
                                             if not validation_result:
                                                 field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'] = validation_errors
                                                 field_is_valid = field_is_valid and validation_result
@@ -211,7 +239,11 @@ def validate_object(schema, data, allow_unknown_fields=None,
                     for _validator in field_props.get('validators', []):
                         if _validator is None:
                             continue
-                        validation_result, validation_errors = _validator(data[field_name], data, schema=schema, context=context)
+                        validation_result, validation_errors = _validator(
+                            data[field_name], data, schema=schema, context=context,
+                            parent_contexts=parent_contexts,
+                            siblings_list=siblings_list,
+                            curr_obj_idx_in_siblings_list=curr_obj_idx_in_siblings_list)
                         if not validation_result:
                             validator_name = _validator.desc.upper() or _validator.__name__.upper()
                             validator_name = validator_name.replace(" ", "_")
@@ -226,7 +258,10 @@ def validate_object(schema, data, allow_unknown_fields=None,
                     errors['FIELD_LEVEL_ERRORS'] = {}
                 errors['FIELD_LEVEL_ERRORS'][field_name] = field_errors
     for schema_validator in schema_validators:
-        validation_result, validation_errors = schema_validator(data, schema=schema, context=context)
+        validation_result, validation_errors = schema_validator(
+            data, schema=schema, context=context, siblings_list=siblings_list,
+            parent_contexts=parent_contexts,
+            curr_obj_idx_in_siblings_list=curr_obj_idx_in_siblings_list)
         if validation_result is False:
             if errors is None:
                 errors = {}
@@ -238,16 +273,19 @@ def validate_object(schema, data, allow_unknown_fields=None,
     return (is_valid, errors)
 
 
-def validate_list_of_objects(schema, datalist, allow_unknown_fields=None, allow_required_fields_to_be_skipped=None, context=None):
+def validate_list_of_objects(schema, datalist, allow_unknown_fields=None,
+                             allow_required_fields_to_be_skipped=None, context=None,
+                             parent_contexts=None, schemas_registry=None):
     is_valid = True
     errors = []
     if not isinstance(datalist, list):
         return (False, "Expected a list")
-    for datum in datalist:
+    for idx, datum in enumerate(datalist):
         datum_validity, datum_errors = validate_object(
             schema, datum, allow_unknown_fields=allow_unknown_fields,
             allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped,
-            context=context)
+            context=context, siblings_list=datalist, parent_contexts=parent_contexts,
+            schemas_registry=schemas_registry, curr_obj_idx_in_siblings_list=idx)
         if datum_validity is False:
             errors.append(datum_errors)
         else:
