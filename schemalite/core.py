@@ -145,68 +145,73 @@ def validate_object(schema, data, allow_unknown_fields=None,
                     if field_type is not None:
                         if type(field_type) == type:
                             if field_type == dict:
+                                is_mapped_collection = field_props.get('is_mapped_collection')
                                 dict_schema = field_props.get('dict_schema')
-                                if dict_schema is None:
-                                    rel_schema_cls_name = field_props.get('is_a_relation_to')
-                                    if rel_schema_cls_name and schemas_registry:
-                                        dict_schema = schemas_registry.get(rel_schema_cls_name)
-                                if dict_schema:
-                                    if isinstance(parent_contexts, list):
-                                        _parent_contexts = parent_contexts[:]
-                                        _parent_contexts.append(context)
-                                    else:
-                                        _parent_contexts = [context]
-                                    validation_result, validation_errors = validate_object(
-                                        dict_schema, data[field_name], allow_unknown_fields=allow_unknown_fields,
-                                        allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped,
-                                        parent_contexts=_parent_contexts)
-                                    if not validation_result:
-                                        field_errors['VALIDATION_ERRORS_FOR_OBJECT'] = validation_errors
-                                        field_is_valid = field_is_valid and validation_result
-                                        is_valid = is_valid and validation_result
+                                if is_mapped_collection:
+                                    pass
+                                else:
+                                    if dict_schema is None:
+                                        rel_schema_cls_name = field_props.get('is_a_relation_to')
+                                        if rel_schema_cls_name and schemas_registry:
+                                            dict_schema = schemas_registry.get(rel_schema_cls_name)
+                                    if dict_schema:
+                                        if isinstance(parent_contexts, list):
+                                            _parent_contexts = parent_contexts[:]
+                                            _parent_contexts.append(context)
+                                        else:
+                                            _parent_contexts = [context]
+                                        validation_result, validation_errors = validate_object(
+                                            dict_schema, data[field_name], allow_unknown_fields=allow_unknown_fields,
+                                            allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped,
+                                            parent_contexts=_parent_contexts)
+                                        if not validation_result:
+                                            field_errors['VALIDATION_ERRORS_FOR_OBJECT'] = validation_errors
+                                            field_is_valid = field_is_valid and validation_result
+                                            is_valid = is_valid and validation_result
                             elif field_type == list:
                                 list_item_type = field_props.get('list_item_type')
                                 field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'] = []
-                                if type(list_item_type) == type:
-                                    if list_item_type == dict:
-                                        list_item_schema = field_props.get('list_item_schema')
-                                        if list_item_schema is None:
-                                            rel_schema_cls_name = field_props.get('is_a_relation_to')
-                                            if rel_schema_cls_name is not None and schemas_registry is not None:
-                                                list_item_schema = schemas_registry.get(rel_schema_cls_name.__name__)
-                                        if list_item_schema:
-                                            if isinstance(parent_contexts, list):
-                                                _parent_contexts = parent_contexts[:]
-                                                _parent_contexts.append(context)
-                                            else:
-                                                _parent_contexts = [context]
-                                            validation_result, validation_errors = validate_list_of_objects(
-                                                list_item_schema, data[field_name], allow_unknown_fields=allow_unknown_fields,
-                                                allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped,
-                                                parent_contexts=_parent_contexts)
-                                            if not validation_result:
-                                                field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'] = validation_errors
-                                                field_is_valid = field_is_valid and validation_result
-                                                is_valid = is_valid and validation_result
-                                    else:
+                                if data[field_name] is not None:
+                                    if type(list_item_type) == type:
+                                        if list_item_type == dict:
+                                            list_item_schema = field_props.get('list_item_schema')
+                                            if list_item_schema is None:
+                                                rel_schema_cls_name = field_props.get('is_a_relation_to')
+                                                if rel_schema_cls_name is not None and schemas_registry is not None:
+                                                    list_item_schema = schemas_registry.get(rel_schema_cls_name.__name__)
+                                            if list_item_schema:
+                                                if isinstance(parent_contexts, list):
+                                                    _parent_contexts = parent_contexts[:]
+                                                    _parent_contexts.append(context)
+                                                else:
+                                                    _parent_contexts = [context]
+                                                validation_result, validation_errors = validate_list_of_objects(
+                                                    list_item_schema, data[field_name], allow_unknown_fields=allow_unknown_fields,
+                                                    allow_required_fields_to_be_skipped=allow_required_fields_to_be_skipped,
+                                                    parent_contexts=_parent_contexts)
+                                                if not validation_result:
+                                                    field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'] = validation_errors
+                                                    field_is_valid = field_is_valid and validation_result
+                                                    is_valid = is_valid and validation_result
+                                        else:
+                                            for item in data[field_name]:
+                                                if not instance_of(item, list_item_type):
+                                                    field_is_valid = False
+                                                    is_valid = False
+                                                    field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(
+                                                        {"TYPE_ERROR": "Item should be of type {0}".format(list_item_type.__name__)})
+                                                else:
+                                                    field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(None)
+                                    elif type(list_item_type) == tuple:
                                         for item in data[field_name]:
-                                            if not instance_of(item, list_item_type):
+                                            if not any(instance_of(item, t) for t in list_item_type):
                                                 field_is_valid = False
                                                 is_valid = False
                                                 field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(
-                                                    {"TYPE_ERROR": "Item should be of type {0}".format(list_item_type.__name__)})
+                                                    {"TYPE_ERROR": "Item should be of type {0}".format(
+                                                        "/".join([t.__name__ for t in list_item_type]))})
                                             else:
                                                 field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(None)
-                                elif type(list_item_type) == tuple:
-                                    for item in data[field_name]:
-                                        if not any(instance_of(item, t) for t in list_item_type):
-                                            field_is_valid = False
-                                            is_valid = False
-                                            field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(
-                                                {"TYPE_ERROR": "Item should be of type {0}".format(
-                                                    "/".join([t.__name__ for t in list_item_type]))})
-                                        else:
-                                            field_errors['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST'].append(None)
 
                                 if 'permitted_values_for_list_items' in field_props:
                                     for idx, item in enumerate(data[field_name]):
