@@ -1,6 +1,8 @@
 import json
 from datetime import date, datetime
 import dateutil
+from toolspy import is_int, is_number
+from decimal import Decimal
 
 
 def instance_of(item, type_):
@@ -18,6 +20,15 @@ def instance_of(item, type_):
             return isinstance(dateutil.parser.parse(item), datetime)
         else:
             return False
+    elif type_ == int:
+        if isinstance(item, int):
+            return True
+        else:
+            return is_int(item)
+    elif type_ == float:
+        return isinstance(item, float) or is_number(item)
+    elif type_ == Decimal:
+        return isinstance(item, Decimal) or is_number(item)
     else:
         return isinstance(item, type_)
 
