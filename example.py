@@ -1,34 +1,6 @@
-from schemalite import Schema, Field, validator, schema_validator, SchemaError, SchemaObjectField, ListOfSchemaObjectsField
-from schemalite.validators import type_validator, is_a_type_of, is_a_list_of_types_of
-from schemalite.core import validate_object, schema_to_json, func_and_desc
+from schemalite.validators import is_a_type_of, is_a_list_of_types_of
+from schemalite.core import validate_dict, schema_to_json, func_and_desc
 import json
-
-
-class PersonSchema(Schema):
-
-    name = Field(required=True)
-    gender = Field(required=True)
-    age = Field(validator=type_validator(int), required=False, internal_name='big_age')
-
-    @classmethod
-    @validator('age')
-    def validate_age(cls, val, data):
-        if val < 0 or val > 120:
-            raise SchemaError('Invalid Value For Age')
-
-    @classmethod
-    @schema_validator
-    def check_males_age(cls, data):
-        if data['gender'] == 'M':
-            if 'age' in data and data['age'] > 70:
-                raise SchemaError('Male age cannot be greater than 70')
-
-
-class OrganizationSchema(Schema):
-
-    name = Field(required=True)
-    head = SchemaObjectField(required=False, schema=PersonSchema)
-    members = ListOfSchemaObjectsField(schema=PersonSchema)
 
 
 person_schema = {
@@ -44,7 +16,7 @@ person_schema = {
         },
         "age": {
             "required": func_and_desc(
-                lambda person, **kwargs: person.get('gender')=='Female',
+                lambda person, **kwargs: person.get('gender') == 'Female',
                 "Required if gender is female"),
             "type": int,
             "validators": [
@@ -103,12 +75,15 @@ ds_schema = {
     }
 }
 
+
 def validate_rels(obj):
     for k, v in obj["rels"]:
-        validate_object(ds_schema, v)
+        validate_dict(ds_schema, v)
+
 
 if __name__ == '__main__':
-    isaac = {"gender": "Male", "name": "Isaac", "age": "new", "access_levels": [1,4,60]}
+    isaac = {"gender": "Male", "name": "Isaac",
+             "age": "new", "access_levels": [1, 4, 60]}
     surya = {"gender": "Male", "name": "Surya", "age": "h", "city": "Chennai"}
     senthil = {"gender": "Male", "name": "Senthil"}
     mrx = {"gender": "m", "name": "x"}
@@ -121,14 +96,14 @@ if __name__ == '__main__':
         "members": [surya, senthil, sharanya],
         "city": "Chennai"
     }
-    print validate_object(person_schema, sharanya)
-    print validate_object(person_schema, mrx)
-    print validate_object(person_schema, surya)
-    print validate_object(person_schema, surya, allow_unknown_fields=True)
-    print validate_object(org_schema, inkmonk)
-    print validate_object(org_schema, inkmonk, allow_unknown_fields=False)
-    print validate_object(person_schema, {}, allow_required_fields_to_be_skipped=True)
-    print validate_object(person_schema, {})
+    print validate_dict(sharanya, person_schema, )
+    print validate_dict(mrx, person_schema)
+    print validate_dict(surya, person_schema)
+    print validate_dict(surya, person_schema, allow_unknown_fields=True)
+    print validate_dict(inkmonk, org_schema)
+    print validate_dict(inkmonk, org_schema, allow_unknown_fields=False)
+    print validate_dict({}, person_schema, allow_required_fields_to_be_skipped=True)
+    print validate_dict({}, person_schema)
 
     # print json.loads(schema_to_json(person_schema))
 
@@ -143,7 +118,7 @@ if __name__ == '__main__':
     #     }
     # }
 
-    # print validate_object(ds_schema, ds)
+    # print validate_dict(ds_schema, ds)
 
     # ricky = {'gender': 'M', 'age': 80}
 

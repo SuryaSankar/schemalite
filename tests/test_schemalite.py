@@ -6,7 +6,7 @@
 import pytest
 
 
-from schemalite import func_and_desc
+from schemalite import func_and_desc, validate_dict, validate_list_of_dicts
 
 
 person_schema = {
@@ -22,7 +22,7 @@ person_schema = {
         },
         "age": {
             "required": func_and_desc(
-                lambda person, **kwargs: person.get('gender')=='Female',
+                lambda person, **kwargs: person.get('gender') == 'Female',
                 "Required if gender is female"),
             "type": int,
             "validators": [
@@ -69,18 +69,15 @@ org_schema = {
 }
 
 
-
-@pytest.fixture
-def response():
-    """Sample pytest fixture.
-
-    See more at: http://doc.pytest.org/en/latest/fixture.html
-    """
-    # import requests
-    # return requests.get('https://github.com/audreyr/cookiecutter-pypackage')
-
-
-def test_content(response):
-    """Sample pytest test function with the pytest fixture as an argument."""
-    # from bs4 import BeautifulSoup
-    # assert 'GitHub' in BeautifulSoup(response.content).title.string
+def test_missing_conditionally_required_field():
+    female_without_age = {
+        "gender": "Female",
+        "name": "Sharanya",
+    }
+    valid, errors = validate_dict(female_without_age, person_schema)
+    assert not valid
+    assert isinstance(errors, dict)
+    assert 'MISSING_FIELDS' in errors
+    assert 'age' in errors['MISSING_FIELDS']
+    assert 'FIELD_LEVEL_ERRORS' in errors
+    assert errors['FIELD_LEVEL_ERRORS']['age']['MISSING_FIELD_ERROR'] == 'Required if gender is female'

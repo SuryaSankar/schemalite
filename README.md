@@ -4,43 +4,66 @@ A Schema validation library with a very minimal API.
 
 ##Installation
 
-	pip install schemalite
+    pip install schemalite
 
 ##Why another schema library?
 
-Because I started writing it before I came across Cerberus, Marshmallow and Schema.
+Because I started writing it before I came across Cerberus, Marshmallow and
+Schema.
 
-And also because, while the other libraries have powerful DSLs, they also have too big an API for my simple needs. This library has only one concept I need to keep in mind - A validator is a function that will return a tuple like (False, "Some error message") or (True, None). Thats all.
-
+And also because, while the other libraries have powerful DSLs, they also have
+too big an API for my simple needs. This library has only one concept I need to
+keep in mind - A validator is a function that will return a tuple like (False,
+"Some error message") or (True, None). Thats all.
 
 A schema is a `dict` with 2 keys - "fields" and "validators"
 
-`validators` is a list of validator functions to apply on the input data as a whole instead of at field level. It should again be a function which returns a tuple as output, while accepting a single dictionary as input ( corresponding to the whole input data )
+`validators` is a list of validator functions to apply on the input data as a
+whole instead of at field level. It should again be a function which returns a
+tuple as output, while accepting a single dictionary as input ( corresponding to
+the whole input data )
 
-`fields` - is a dict with keys corresponding to the names of the keys of the dictionary which is being validated. Each field is in turn a dict, which has one or more of the following optional keys
+`fields` - is a dict with keys corresponding to the names of the keys of the
+dictionary which is being validated. Each field is in turn a dict, which has one
+or more of the following optional keys
 
-1. `required` - True/False. Alternatively it can also be a function which accepts the input dictionary and outputs True/False as output. If not specified, field is assumed to be not required.
+1. `required` - True/False. Alternatively it can also be a function which
+   accepts the input dictionary and outputs True/False as output. If not
+   specified, field is assumed to be not required.
 
-2. `type` - The type of the data the field is expecting. It can be any valid pythonic type - int / str / unicode / date / datetime / Decimal / list / dict ( or anything else which is a python `type`). It can also be a list of types in which case the data should be of any one of those types.
+2. `type` - The type of the data the field is expecting. It can be any valid
+   pythonic type - int / str / unicode / date / datetime / Decimal / list / dict
+   ( or anything else which is a python `type`). It can also be a list of types
+   in which case the data should be of any one of those types.
 
-3. `validators` - A list of validator functions. The function should accept 2 arguments - The value of the particular key being processed and the whole dictionary itself (in case the validator needs access to the whole data instead of that field alone to decide whether the value is valid). It has to return a tuple. Either (True, None) or (False, "some error message") ( The error need not be a string. It can be any valid json serializable data structure - a list or dict also)
+3. `validators` - A list of validator functions. The function should accept 2
+   arguments - The value of the particular key being processed and the whole
+   dictionary itself (in case the validator needs access to the whole data
+   instead of that field alone to decide whether the value is valid). It has to
+   return a tuple. Either (True, None) or (False, "some error message") ( The
+   error need not be a string. It can be any valid json serializable data
+   structure - a list or dict also)
 
 4. `permitted_values` - A list of permitted values for the field.
 
 5. If `type` is list, you can send the following fields also
 
-    i. `list_item_type` - Tells the type of each item in the list. It can also be any Python type or a list of types.
-    ii. `list_item_schema` - If `list_item_type` is dict, then you can optionally provide `list_item_schema` also - to validate each dict in the list against another schema
+    i. `list_item_type` - Tells the type of each item in the list. It can also
+    be any Python type or a list of types. ii. `list_item_schema` - If
+    `list_item_type` is dict, then you can optionally provide `list_item_schema`
+    also - to validate each dict in the list against another schema
 
-6. If `type` is dict, then you can send the following field
-    `dict_schema` - The schema to validate the dict against.
+6. If `type` is dict, then you can send the following field `dict_schema` - The
+   schema to validate the dict against.
 
+At both field and schema level, all validators will be applied one after another
+and their errors will be collected together in the output.
 
-At both field and schema level, all validators will be applied one after another and their errors will be collected together in the output. 
+To apply the validator, you can call `validate_dict(dictionary, schema)` ( or
+`validate_list_of_dicts(list_of_dicts, dict_schema)`)
 
-To apply the validator, you can call   `validate_object(schema, data)` ( or `validate_list_of_objects(schema, datalist)`)
-
-The output itself will be tuple of the same format as what we defined above for validators.
+The output itself will be tuple of the same format as what we defined above for
+validators.
 
 Example:
 
@@ -123,8 +146,9 @@ And some data to validate against the schema
 Lets first validate some persons
 
 ```python
-validate_object(person_schema, mrx)
+validate_dict(mrx, person_schema)
 ```
+
 Output is
 
 ```python
@@ -136,12 +160,12 @@ Output is
         }
     }
 })
- ```
+```
 
 Another person
 
 ```python
-validate_object(person_schema, surya)
+validate_dict(surya, person_schema)
 ```
 
 Output
@@ -162,7 +186,7 @@ Output
 Now validating the same person, but allowing unknown fields
 
 ```python
-validate_object(person_schema, surya)
+validate_dict(surya, person_schema, allow_unknown_fields=True)
 ```
 
 Output
@@ -188,11 +212,10 @@ inkmonk = {
     "members": [surya, senthil, sharanya],
     "city": "Chennai"
 }
-validate_object(org_schema, inkmonk, allow_unknown_fields=False)
+validate_dict(inkmonk, org_schema)
 ```
 
 Output
-
 
 ```python
 
@@ -257,31 +280,59 @@ Output
 
 ###Understanding the errors output
 
-The library is structured to provide an error output to any nested level of granularity.
+The library is structured to provide an error output to any nested level of
+granularity.
 
-At the outer most level, there are the following keys 
+At the outer most level, there are the following keys
 
 "FIELD_LEVEL_ERRORS" - Contains the errors mapped to each field
 
 "SCHEMA_LEVEL_ERRORS" - A list of errors found for the schema as a whole
 
-"UNKNOWN_FIELDS" - If the validation is configured to not allow unknown fields and if the data had any, they will be listed here
+"UNKNOWN_FIELDS" - If the validation is configured to not allow unknown fields
+and if the data had any, they will be listed here
 
 "MISSING_FIELDS" - List of all missing required fields.
 
-Inside 'FIELD_LEVEL_ERRORS', each field will have a dict of errors mapped to it. The keys of the dict are the names of the errors and values are the error strings. Example for an error dict for a field would be 
-    `{'TYPE_ERROR': "This field should have type int only"}` or `{"PERMITTED_VALUES_ERROR": "The object should have value high/low only"}
+Inside 'FIELD_LEVEL_ERRORS', each field will have a dict of errors mapped to it.
+The keys of the dict are the names of the errors and values are the error
+strings. Example for an error dict for a field would be
+`{'TYPE_ERROR': "This field should have type int only"}` or
+`{"PERMITTED_VALUES_ERROR": "The object should have value high/low only"}
 
-If a particular field is of type `dict`, and if `dict_schema` is defined, then you can also expect to see a key named `VALIDATION_ERRORS_FOR_OBJECT` inside `errors['FIELD_LEVEL_ERRORS']['particular_field_name']`.  In that case `errors['FIELD_LEVEL_ERRORS']['particular_field_name']['VALIDATION_ERRORS_FOR_OBJECT']` will contain another errors object obtained by matching the data in this field alone against another schema ( So that errors object will in turn have FIELD_LEVEL_ERRORS, SCHEMA_LEVEL_ERRORS etc)
+If a particular field is of type `dict`, and if `dict_schema` is defined, then
+you can also expect to see a key named `VALIDATION_ERRORS_FOR_OBJECT` inside
+`errors['FIELD_LEVEL_ERRORS']['particular_field_name']`. In that case
+`errors['FIELD_LEVEL_ERRORS']['particular_field_name']['VALIDATION_ERRORS_FOR_OBJECT']`
+will contain another errors object obtained by matching the data in this field
+alone against another schema ( So that errors object will in turn have
+FIELD_LEVEL_ERRORS, SCHEMA_LEVEL_ERRORS etc)
 
-If a particular field is of type `list` and if `list_type` is defined, then if there are validation errors for the objects in the list, you can expect to see `errors['FIELD_LEVEL_ERRORS']['particular_field_name']['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST']`. This will be a list of error objects. If the field is a list of primitive types, then you can expect each error object to have fields like `TYPE_ERROR` or `PERMITTED_VALUES_ERROR`.
-If it is a list of objects of another schema ( defined by `list_item_schema`), then each item in the errors list would be an error object got by validating against that schema - so it will have `FIELD_LEVEL_ERRORS`, `SCHEMA_LEVEL_ERRORS` etc. ( While iterating, if one item has no error, then instead of error object, it will have a null in the errors list at that index.)
+If a particular field is of type `list` and if `list_type` is defined, then if
+there are validation errors for the objects in the list, you can expect to see
+`errors['FIELD_LEVEL_ERRORS']['particular_field_name']['VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST']`.
+This will be a list of error objects. If the field is a list of primitive types,
+then you can expect each error object to have fields like `TYPE_ERROR` or
+`PERMITTED_VALUES_ERROR`. If it is a list of objects of another schema ( defined
+by `list_item_schema`), then each item in the errors list would be an error
+object got by validating against that schema - so it will have
+`FIELD_LEVEL_ERRORS`, `SCHEMA_LEVEL_ERRORS` etc. ( While iterating, if one item
+has no error, then instead of error object, it will have a null in the errors
+list at that index.)
 
-
-Since the errors are shown at all levels - it becomes possible to directly apply this on a GUI client for example ( the errors can be shown granularly next to each nested field.)
+Since the errors are shown at all levels - it becomes possible to directly apply
+this on a GUI client for example ( the errors can be shown granularly next to
+each nested field.)
 
 (Check the full example at example.py)
 
-The decorator `func_and_desc` is used to give a human readable name to a validator. If this is used, when the schema is serialized, the validators will also have readable names. If this decorator is not used, the validator will get serialized using the function name (or `Unnamed function` if there is no function name)
+The decorator `func_and_desc` is used to give a human readable name to a
+validator. If this is used, when the schema is serialized, the validators will
+also have readable names. If this decorator is not used, the validator will get
+serialized using the function name (or `Unnamed function` if there is no
+function name)
 
-I've also defined some ready to use validators for type checking like shown in the above example. Since the concept of a validator is very generic, it is easy to build a large collection of validators which you can pick and use for your domain.
+I've also defined some ready to use validators for type checking like shown in
+the above example. Since the concept of a validator is very generic, it is easy
+to build a large collection of validators which you can pick and use for your
+domain.
