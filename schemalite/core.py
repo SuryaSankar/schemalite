@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+
+"""Main module."""
+
 import json
 from datetime import date, datetime
 import dateutil
@@ -32,54 +36,16 @@ def instance_of(item, type_):
     else:
         return isinstance(item, type_)
 
-def validate_object(schema, data, allow_unknown_fields=None,
-                    allow_required_fields_to_be_skipped=None, context=None,
-                    polymorphic_identity=None, siblings_list=None,
-                    parent_contexts=None, schemas_registry=None,
-                    curr_obj_idx_in_siblings_list=None):
-    """
-        person_schema = {
-            "fields": {
-                "name": {
-                    "required": True
-                },
-                "gender": {
-                    "required": True,
-                    "validators": [
-                        is_a_type_of(str, unicode),
-                        lambda gender, person: (False, "Invalid value")
-                        if gender not in ("Male", "Female") else (True, None)
-                    ]
-                },
-                "age": {
-                    "validators": [
-                        is_a_type_of(int),
-                        lambda age, person: (False, "Too old") if age > 40 else (True, None)],
-                    "required": lambda person: person.get('gender') == 'Female'
-                }
-            },
-            "allow_unknown_fields": True
-        }
+def validate_object(
+        schema, data, allow_unknown_fields=None,
+        allow_required_fields_to_be_skipped=None,
+        polymorphic_identity=None,
+        context=None, parent_contexts=None,
+        siblings_list=None, curr_obj_idx_in_siblings_list=None,
+        schemas_registry=None):
+    """The main method to be used to validate data against a schema
 
-        org_schema = {
-            "fields": {
-                "name": {
-                    "required": True
-                },
-                "ceo": {
-                    "target_schema": person_schema,
-                    "target_relation_type": "scalar"
-                },
-                "members": {
-                    "target_schema": person_schema,
-                    "target_relation_type": "list"
-                }
-            },
-            "validators": [
-                lambda org: (False, "Non member cannot be CEO")
-                if org["ceo"] not in org["members"] else (True, None)
-            ]
-        }
+    This method accepts a schema as the first argument and the data to be validated
     """
     is_valid = True
     errors = None
