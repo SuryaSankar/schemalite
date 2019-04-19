@@ -10,6 +10,12 @@ from decimal import Decimal
 
 
 def instance_of(item, type_):
+    """This method is an enhanced version of isinstance
+
+    It can handle cases where a number like string is meant
+    to be treated as a number or where a datetime like string
+    is meant to be treated as a datetime
+    """
     if type_ == datetime:
         if isinstance(item, datetime):
             return True
@@ -35,6 +41,37 @@ def instance_of(item, type_):
         return isinstance(item, Decimal) or is_number(item)
     else:
         return isinstance(item, type_)
+
+
+def validate_schema(schema):
+        
+
+    conditions = [
+        isinstance(schema, dict),
+
+    ]
+    fields_dict_schema = {
+        "validators": [],
+        "allow_unknown_fields": True,
+    }
+    schema_of_schema = {
+        "fields": {
+            "fields": {
+                "required": False,
+                "type": dict,
+                "dict_schema": fields_dict_schema
+            },
+            "validators": {
+                "type": list,
+                "list_item_type": callable,
+                "required": False
+            },
+            "polymorphic_on": {
+                "required": False
+            }
+        },
+        "validators": []
+    }
 
 
 def validate_dict(
