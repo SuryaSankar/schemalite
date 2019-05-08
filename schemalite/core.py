@@ -2,11 +2,13 @@
 
 """Main module."""
 
+from __future__ import absolute_import
 import json
 from datetime import date, datetime
 import dateutil
 from toolspy import is_int, is_number
 from decimal import Decimal
+import six
 
 
 def instance_of(item, type_):
@@ -19,14 +21,14 @@ def instance_of(item, type_):
     if type_ == datetime:
         if isinstance(item, datetime):
             return True
-        elif isinstance(item, str) or isinstance(item, unicode):
+        elif isinstance(item, str) or isinstance(item, six.text_type):
             return isinstance(dateutil.parser.parse(item), datetime)
         else:
             return False
     elif type_ == date:
         if isinstance(item, date):
             return True
-        elif isinstance(item, str) or isinstance(item, unicode):
+        elif isinstance(item, str) or isinstance(item, six.text_type):
             return isinstance(dateutil.parser.parse(item), datetime)
         else:
             return False
@@ -139,7 +141,7 @@ def validate_dict(
                     "validators", [])
         if not allow_unknown_fields:
             for k in dictionary.keys():
-                if k not in fields.keys():
+                if k not in list(fields.keys()):
                     if errors is None:
                         errors = {}
                     is_valid = False
@@ -378,7 +380,7 @@ def json_encoder(obj):
         try:
             return json.JSONEncoder().default(obj)
         except:
-            return unicode(obj)
+            return six.text_type(obj)
 
 
 def schema_to_json(schema):

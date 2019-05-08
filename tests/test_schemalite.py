@@ -3,21 +3,24 @@
 
 """Tests for `schemalite` package."""
 
+from __future__ import absolute_import
 import pytest
 
 
 from schemalite import func_and_desc, validate_dict, validate_list_of_dicts
+import six
+from six.moves import range
 
 
 person_schema = {
     "fields": {
         "name": {
             "required": True,
-            "type": (str, unicode)
+            "type": (str, six.text_type)
         },
         "gender": {
             "required": True,
-            "type": (str, unicode),
+            "type": (str, six.text_type),
             "permitted_values": ("Male", "Female")
         },
         "age": {
@@ -35,7 +38,7 @@ person_schema = {
         "access_levels": {
             "type": list,
             "list_item_type": int,
-            "permitted_values_for_list_items": range(1, 10)
+            "permitted_values_for_list_items": list(range(1, 10))
         }
     },
 }
@@ -44,7 +47,7 @@ org_schema = {
     "fields": {
         "name": {
             "required": True,
-            "type": (str, unicode)
+            "type": (str, six.text_type)
 
         },
         "ceo": {
