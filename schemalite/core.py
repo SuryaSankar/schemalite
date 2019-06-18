@@ -62,6 +62,15 @@ def validate_dict(
         If this is set to True, the validator will allow the dictionary to have fields which are not specified in the schema.
         The validation will be done only on those fields whose behavior is specified by the schema. The rest would be ignored.
 
+    allow_required_fields_to_be_skipped: bool
+        Sometimes even if a field is marked as required, it might become necessary to skip that check when
+        the validator is called in certain contexts (Consider POST vs PUT for example. A field might be
+        required for the POST request, but might be optional for the PUT request. If you are re-using the
+        same validation logic for both, it will be convenient if you can allow the PUT request to allow
+        the required fields to be skipped)
+
+        
+
     Returns
     --------
 
