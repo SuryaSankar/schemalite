@@ -87,71 +87,72 @@ Example:
 
 Lets define 2 schemas
 
-```python
-person_schema = {
-    "fields": {
-        "name": {
-            "required": True,
-            "type": (str, unicode)
+.. code-block:: python
+    
+    person_schema = {
+        "fields": {
+            "name": {
+                "required": True,
+                "type": (str, unicode)
+            },
+            "gender": {
+                "required": True,
+                "type": (str, unicode),
+                "permitted_values": ("Male", "Female")
+            },
+            "age": {
+                "required": func_and_desc(
+                    lambda person: person['gender']=='Female',
+                    "Required if gender is female"),
+                "type": int,
+                "validators": [
+                    func_and_desc(
+                        lambda age, person: (False, "Too old")
+                        if age > 40 else (True, None),
+                        "Has to be less than 40")
+                ]
+            },
+            "access_levels": {
+                "type": list,
+                "list_item_type": int,
+                "permitted_values_for_list_items": range(1, 10)
+            }
         },
-        "gender": {
-            "required": True,
-            "type": (str, unicode),
-            "permitted_values": ("Male", "Female")
-        },
-        "age": {
-            "required": func_and_desc(
-                lambda person: person['gender']=='Female',
-                "Required if gender is female"),
-            "type": int,
-            "validators": [
-                func_and_desc(
-                    lambda age, person: (False, "Too old")
-                    if age > 40 else (True, None),
-                    "Has to be less than 40")
-            ]
-        },
-        "access_levels": {
-            "type": list,
-            "list_item_type": int,
-            "permitted_values_for_list_items": range(1, 10)
-        }
-    },
-}
+    }
 
-org_schema = {
-    "fields": {
-        "name": {
-            "required": True,
-            "type": (str, unicode)
+    org_schema = {
+        "fields": {
+            "name": {
+                "required": True,
+                "type": (str, unicode)
 
+            },
+            "ceo": {
+                "required": True,
+                "type": dict,
+                "dict_schema": person_schema
+            },
+            "members": {
+                "required": True,
+                "type": list,
+                "list_item_type": dict,
+                "list_item_schema": person_schema
+            }
         },
-        "ceo": {
-            "required": True,
-            "type": dict,
-            "dict_schema": person_schema
-        },
-        "members": {
-            "required": True,
-            "type": list,
-            "list_item_type": dict,
-            "list_item_schema": person_schema
-        }
-    },
-    "validators": [
-        func_and_desc(
-            lambda org: (False, "Non member cannot be CEO")
-            if org["ceo"] not in org["members"] else (True, None),
-            "Non member cannot be CEO")
-    ],
-    "allow_unknown_fields": True
-}
+        "validators": [
+            func_and_desc(
+                lambda org: (False, "Non member cannot be CEO")
+                if org["ceo"] not in org["members"] else (True, None),
+                "Non member cannot be CEO")
+        ],
+        "allow_unknown_fields": True
+    }
 
-```
 
 And some data to validate against the schema
 
-```python
+.. code-block:: python
+    
     isaac = {"gender": "Male", "name": "Isaac", "age": "new", "access_levels": [1,4,60]}
     surya = {"gender": "Male", "name": "Surya", "age": "h", "city": "Chennai"}
     senthil = {"gender": "Male", "name": "Senthil"}
@@ -159,119 +160,96 @@ And some data to validate against the schema
     sharanya = {
         "gender": "Female", "name": "Sharanya",
         "access_levels": [4, 5, 60]}
-```
+
 
 Lets first validate some persons
 
-```python
-validate_dict(mrx, person_schema)
-```
+.. code-block:: python
+    
+    validate_dict(mrx, person_schema)
+
 
 Output is
 
-```python
-(False,
- {
-    'FIELD_LEVEL_ERRORS': {
-        'gender': {
-            'PERMITTED_VALUES_ERROR': 'Field data can be one of the following only: Male/Female'
+.. code-block:: python
+    
+    (False,
+    {
+        'FIELD_LEVEL_ERRORS': {
+            'gender': {
+                'PERMITTED_VALUES_ERROR': 'Field data can be one of the following only: Male/Female'
+            }
         }
-    }
-})
-```
+    })
+
 
 Another person
 
-```python
-validate_dict(surya, person_schema)
-```
+.. code-block:: python
+    
+    validate_dict(surya, person_schema)
+
 
 Output
 
-```python
-(False,
- {
-    'FIELD_LEVEL_ERRORS': {
-        'age': {
-            'HAS_TO_BE_LESS_THAN_40': 'Too old',
-            'TYPE_ERROR': 'Field data should be of type int'
-        }
-    },
-  'UNKNOWN_FIELDS': ['city']
-})
-```
+.. code-block:: python
+    
+    (False,
+    {
+        'FIELD_LEVEL_ERRORS': {
+            'age': {
+                'HAS_TO_BE_LESS_THAN_40': 'Too old',
+                'TYPE_ERROR': 'Field data should be of type int'
+            }
+        },
+    'UNKNOWN_FIELDS': ['city']
+    })
+
 
 Now validating the same person, but allowing unknown fields
 
-```python
-validate_dict(surya, person_schema, allow_unknown_fields=True)
-```
+.. code-block:: python
+    
+    validate_dict(surya, person_schema, allow_unknown_fields=True)
+
 
 Output
 
-```python
-(False,
- {
-    'FIELD_LEVEL_ERRORS': {
-        'age': {
-            'HAS_TO_BE_LESS_THAN_40': 'Too old',
-            'TYPE_ERROR': 'Field data should be of type int'
+.. code-block:: python
+    
+    (False,
+    {
+        'FIELD_LEVEL_ERRORS': {
+            'age': {
+                'HAS_TO_BE_LESS_THAN_40': 'Too old',
+                'TYPE_ERROR': 'Field data should be of type int'
+            }
         }
-    }
-})
-```
+    })
+
 
 Finally lets create an organization and validate it
 
-```python
-inkmonk = {
-    "name": "Inkmonk",
-    "ceo": isaac,
-    "members": [surya, senthil, sharanya],
-    "city": "Chennai"
-}
-validate_dict(inkmonk, org_schema)
-```
+.. code-block:: python
+    
+    inkmonk = {
+        "name": "Inkmonk",
+        "ceo": isaac,
+        "members": [surya, senthil, sharanya],
+        "city": "Chennai"
+    }
+    validate_dict(inkmonk, org_schema)
+
 
 Output
 
-```python
-
-(False,
-{
-    'FIELD_LEVEL_ERRORS': {
-        'ceo': {
-            'VALIDATION_ERRORS_FOR_OBJECT': {
-                'FIELD_LEVEL_ERRORS': {
-                    'access_levels': {
-                        'VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST': [
-                            None,
-                            None,
-                            {
-                                'PERMITTED_VALUES_ERROR': 'Field data can be one of the following only: 1/2/3/4/5/6/7/8/9'
-                            }
-                        ]
-                    },
-                    'age': {
-                        'HAS_TO_BE_LESS_THAN_40': 'Too old',
-                        'TYPE_ERROR': 'Field data should be of type int'
-                    }
-                }
-            }
-        },
-        'members': {
-            'VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST': [
-                {
-                    'FIELD_LEVEL_ERRORS': {
-                        'age': {
-                            'HAS_TO_BE_LESS_THAN_40': 'Too old',
-                            'TYPE_ERROR': 'Field data should be of type int'
-                        }
-                    },
-                    'UNKNOWN_FIELDS': ['city']
-                },
-                None,
-                {
+.. code-block:: json
+    
+    (False,
+    {
+        'FIELD_LEVEL_ERRORS': {
+            'ceo': {
+                'VALIDATION_ERRORS_FOR_OBJECT': {
                     'FIELD_LEVEL_ERRORS': {
                         'access_levels': {
                             'VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST': [
@@ -283,18 +261,48 @@ Output
                             ]
                         },
                         'age': {
-                            'MISSING_FIELD_ERROR': 'Required if gender is female'
+                            'HAS_TO_BE_LESS_THAN_40': 'Too old',
+                            'TYPE_ERROR': 'Field data should be of type int'
                         }
-                    },
-                    'MISSING_FIELDS': ['age']
+                    }
                 }
-            ]
-        }
-    },
-  'SCHEMA_LEVEL_ERRORS': ['Non member cannot be CEO'],
-  'UNKNOWN_FIELDS': ['city']
-})
-```
+            },
+            'members': {
+                'VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST': [
+                    {
+                        'FIELD_LEVEL_ERRORS': {
+                            'age': {
+                                'HAS_TO_BE_LESS_THAN_40': 'Too old',
+                                'TYPE_ERROR': 'Field data should be of type int'
+                            }
+                        },
+                        'UNKNOWN_FIELDS': ['city']
+                    },
+                    None,
+                    {
+                        'FIELD_LEVEL_ERRORS': {
+                            'access_levels': {
+                                'VALIDATION_ERRORS_FOR_OBJECTS_IN_LIST': [
+                                    None,
+                                    None,
+                                    {
+                                        'PERMITTED_VALUES_ERROR': 'Field data can be one of the following only: 1/2/3/4/5/6/7/8/9'
+                                    }
+                                ]
+                            },
+                            'age': {
+                                'MISSING_FIELD_ERROR': 'Required if gender is female'
+                            }
+                        },
+                        'MISSING_FIELDS': ['age']
+                    }
+                ]
+            }
+        },
+    'SCHEMA_LEVEL_ERRORS': ['Non member cannot be CEO'],
+    'UNKNOWN_FIELDS': ['city']
+    })
+
 
 ###Understanding the errors output
 
@@ -316,7 +324,7 @@ Inside 'FIELD_LEVEL_ERRORS', each field will have a dict of errors mapped to it.
 The keys of the dict are the names of the errors and values are the error
 strings. Example for an error dict for a field would be
 `{'TYPE_ERROR': "This field should have type int only"}` or
-`{"PERMITTED_VALUES_ERROR": "The object should have value high/low only"}
+`{"PERMITTED_VALUES_ERROR": "The object should have value high/low only"}`
 
 If a particular field is of type `dict`, and if `dict_schema` is defined, then
 you can also expect to see a key named `VALIDATION_ERRORS_FOR_OBJECT` inside
